@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	cMiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
+	"gofemart/cmd/gophermart/handlers/registration"
 	config "gofemart/internal/configuration"
 	database "gofemart/internal/databse"
 	"gofemart/internal/databse/migrations"
@@ -122,6 +123,8 @@ func initDB() error {
 			return err
 		}
 	}
+	// создаём пул для SQLx на основе полученного пула стандартного SQL
+	database.DBx = database.NewPgDBx(database.DB)
 
 	return nil
 }
@@ -157,6 +160,8 @@ func getRouter() chi.Router {
 		cMiddleware.StripSlashes, // Убираем лишние слеши
 		logger.LogRequests,       // Логируем данные запроса
 	)
+
+	router.Post("/api/user/register", registration.Handler)
 
 	return router
 }
