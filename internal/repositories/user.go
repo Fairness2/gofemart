@@ -48,13 +48,34 @@ func (r *UserRepository) UserExists(login string) (bool, error) {
 
 // CreateUser вставляем нового пользователя и присваиваем ему id
 func (r *UserRepository) CreateUser(user *models.User) error {
-	res, err := r.db.NamedExecContext(r.ctx, "INSERT INTO t_user (login, password_hash) VALUES (:login, :password_hash)", user)
+	smth, err := r.db.PrepareNamed("INSERT INTO t_user (login, password_hash) VALUES (:login, :password_hash) RETURNING id")
 	if err != nil {
 		return err
 	}
-	user.Id, err = res.LastInsertId()
-	if err != nil {
-		return err
+	row := smth.QueryRowxContext(r.ctx, user)
+	return row.Scan(&user.Id)
+}
+
+func (r *UserRepository) GetUserByLogin(login string) (*models.User, bool, error) {
+	var user models.User
+	err := r.db.QueryRowxContext(r.ctx, "SELECT id, login, password_hash FROM t_user WHERE login = $1", login).StructScan(&user)
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
 	}
-	return nil
+	if err != nil {
+		return nil, false, err
+	}
+	return &user, true, nil
+}
+
+func (r *UserRepository) GetUserById(id int64) (*models.User, bool, error) {
+	var user models.User
+	err := r.db.QueryRowxContext(r.ctx, "SELECT id, login, password_hash FROM t_user WHERE id = $1", id).StructScan(&user)
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return &user, true, nil
 }

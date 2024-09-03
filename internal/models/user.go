@@ -15,6 +15,7 @@ type User struct {
 	PasswordHash string `db:"password_hash"`
 }
 
+// GeneratePasswordHash создаём хэш пароля пользователя
 func (u *User) GeneratePasswordHash() error {
 	if u.Password == "" {
 		return errors.New("password key is empty")
@@ -27,4 +28,18 @@ func (u *User) GeneratePasswordHash() error {
 	u.PasswordHash = hex.EncodeToString(harsher.Sum(nil))
 
 	return nil
+}
+
+// CheckPasswordHash проверяем совпадение паролей
+func (u *User) CheckPasswordHash(passwordHash string) (bool, error) {
+	decodedHash, err := hex.DecodeString(passwordHash)
+	if err != nil {
+		return false, err
+	}
+	decodedUserHash, err := hex.DecodeString(u.PasswordHash)
+	if err != nil {
+		return false, err
+	}
+
+	return hmac.Equal(decodedHash, decodedUserHash), nil
 }

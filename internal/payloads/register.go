@@ -1,8 +1,8 @@
 package payloads
 
 type Register struct {
-	Login    string `json:"login" valid:"required,type(string),stringlength(3)"`
-	Password string `json:"password" valid:"required,type(string),stringlength(6)"`
+	Login    string `json:"login" valid:"required,type(string),minstringlength(3)"`
+	Password string `json:"password" valid:"required,type(string),minstringlength(6)"`
 }
 
 type ErrorResponseBody struct {

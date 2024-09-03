@@ -3,15 +3,11 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/go-chi/chi/v5"
-	cMiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
-	"gofemart/cmd/gophermart/handlers/registration"
 	config "gofemart/internal/configuration"
 	database "gofemart/internal/databse"
 	"gofemart/internal/databse/migrations"
 	"gofemart/internal/logger"
-	"gofemart/internal/middlewares"
 	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
@@ -149,21 +145,6 @@ func initServer() *http.Server {
 	}
 
 	return &server
-}
-
-// getRouter конфигурация роутинга приложение
-func getRouter() chi.Router {
-	router := chi.NewRouter()
-	// Устанавливаем мидлваре
-	router.Use(
-		middlewares.JSONHeaders,
-		cMiddleware.StripSlashes, // Убираем лишние слеши
-		logger.LogRequests,       // Логируем данные запроса
-	)
-
-	router.Post("/api/user/register", registration.Handler)
-
-	return router
 }
 
 // stopServer закрытие сервера

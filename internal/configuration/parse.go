@@ -1,10 +1,12 @@
 package config
 
 import (
+	"crypto/rsa"
 	"errors"
 	"flag"
 	"github.com/caarlos0/env/v6"
-	"gofemart/internal/token"
+	"github.com/golang-jwt/jwt/v5"
+	"os"
 )
 
 // Parse инициализирует новую консольную конфигурацию, обрабатывает аргументы командной строки
@@ -80,7 +82,7 @@ func parseFromCli(cnf *CliConfig) error {
 
 // parseKeys парсим ключи для JWT токена
 func parseKeys(cnf *CliConfig) error {
-	pkey, pubKey, err := token.ParseKeys(cnf.PrivateKeyPath, cnf.PublicKeyPath)
+	pkey, pubKey, err := parseKeysFromFile(cnf.PrivateKeyPath, cnf.PublicKeyPath)
 	if err != nil {
 		return err
 	}
@@ -89,4 +91,34 @@ func parseKeys(cnf *CliConfig) error {
 		Private: pkey,
 	}
 	return nil
+}
+
+// parseKeysFromFile получаем ключи для JWT токенов
+func parseKeysFromFile(privateKeyPath string, publicKeyPath string) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	if privateKeyPath == "" {
+		return nil, nil, errors.New("no private key path specified")
+	}
+	if publicKeyPath == "" {
+		return nil, nil, errors.New("no public key path specified")
+	}
+
+	pkeyBody, err := os.ReadFile(privateKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	pkey, err := jwt.ParseRSAPrivateKeyFromPEM(pkeyBody)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pubKeyBody, err := os.ReadFile(publicKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(pubKeyBody)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return pkey, pubKey, nil
 }
