@@ -2,17 +2,17 @@ package validators
 
 import (
 	"github.com/asaskevich/govalidator"
-	"gofemart/internal/logger"
-	"gofemart/internal/repositories"
+	"gofemart/internal/luna"
 )
 
 func init() {
-	govalidator.CustomTypeTagMap.Set("uniqueLogin", func(i interface{}, o interface{}) bool {
-		res, err := repositories.UserR.UserExists(i.(string))
-		if err != nil { // Если нашли ошибку, то записываем еёб жаль нельзя закрыть запрос(
-			logger.Log.Error(err)
+	govalidator.CustomTypeTagMap.Set("luna", func(i interface{}, o interface{}) bool {
+		num, ok := i.(string)
+		// не удалось преобразовать ввод в строку
+		if !ok {
 			return false
 		}
-		return res
+		res, err := luna.Check(num)
+		return err == nil && res
 	})
 }
