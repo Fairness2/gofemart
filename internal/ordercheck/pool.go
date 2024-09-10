@@ -42,15 +42,18 @@ type Pool struct {
 	orderMap  map[string]*WorkedOrder
 	//queue     []string
 	//inWork    []string
-	mutex         sync.RWMutex
-	inChanel      chan string
-	ctx           context.Context
-	wg            sync.WaitGroup
-	cancel        context.CancelFunc
-	pauseDuration time.Duration
-	client        *resty.Client
-	senderMutex   sync.RWMutex
+	mutex             sync.RWMutex
+	inChanel          chan string
+	ctx               context.Context
+	wg                sync.WaitGroup
+	cancel            context.CancelFunc
+	pauseDuration     time.Duration
+	client            *resty.Client
+	senderMutex       sync.RWMutex
+	olderThenDuration time.Duration
 }
+
+var CheckPool *Pool
 
 func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Duration, accrualURL string) *Pool {
 	inChanel := make(chan string, queueSize)
@@ -59,15 +62,16 @@ func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Dur
 	client.SetBaseURL(accrualURL)
 	pool := &Pool{
 		//inWork:   make([]*models.Order, 0, workerCount),
-		mutex:         sync.RWMutex{},
-		inChanel:      inChanel,
-		ctx:           poolContext,
-		cancel:        cancel,
-		orderMap:      make(map[string]*WorkedOrder),
-		wg:            sync.WaitGroup{},
-		pauseDuration: pause,
-		client:        client,
-		senderMutex:   sync.RWMutex{},
+		mutex:             sync.RWMutex{},
+		inChanel:          inChanel,
+		ctx:               poolContext,
+		cancel:            cancel,
+		orderMap:          make(map[string]*WorkedOrder),
+		wg:                sync.WaitGroup{},
+		pauseDuration:     pause,
+		client:            client,
+		senderMutex:       sync.RWMutex{},
+		olderThenDuration: time.Minute * 10,
 	}
 
 	// Запускаем проверку закрытия
@@ -315,7 +319,8 @@ func (p *Pool) pushDBProcessingOrdersToQueue() error {
 	}
 	keys := p.getCurrentOrdersKeys()
 	rep := p.getOrderRepository()
-	orders, err := rep.GetOrdersExcludeOrdersWhereStatusIn(limit, keys, models.StatusProcessing, models.StatusNew)
+	olderThen := time.Now().Add(-p.olderThenDuration)
+	orders, err := rep.GetOrdersExcludeOrdersWhereStatusIn(limit, keys, olderThen, models.StatusProcessing, models.StatusNew)
 	if err != nil {
 		return err
 	}

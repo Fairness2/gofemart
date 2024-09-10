@@ -29,3 +29,30 @@ func (r *AccountRepository) CreateAccount(account *models.Account) error {
 	row := smth.QueryRowxContext(r.ctx, account)
 	return row.Scan(&account.Id)
 }
+
+// GetSum Получаем текущий баланс пользователя
+func (r *AccountRepository) GetSum(userId int64) (int, error) {
+	var sum int
+	row := r.db.QueryRowContext(r.ctx, "SELECT SUM(difference) FROM t_account WHERE user_id = $1", userId)
+	if row.Err() != nil {
+		return 0, row.Err()
+	}
+	err := row.Scan(&sum)
+	if err != nil {
+		return 0, err
+	}
+	return sum, nil
+}
+
+func (r *AccountRepository) GetBalance(userId int64) (*models.Balance, error) { // TODO транзакция для того, чтобы зафиксировать состояние таблицы
+
+	balance := &models.Balance{}
+	row := r.db.QueryRowxContext(r.ctx, "SELECT sum(CASE WHEN difference > 0 THEN difference ELSE 0 END) current, sum(CASE WHEN difference < 0 THEN abs(difference) ELSE 0 END) withdrawn FROM t_account WHERE user_id = $1", userId)
+	if row.Err() != nil {
+		return nil, row.Err()
+	}
+	if err := row.StructScan(&balance); err != nil {
+		return nil, err
+	}
+	return balance, nil
+}

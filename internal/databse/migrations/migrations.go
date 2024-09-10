@@ -40,7 +40,7 @@ func New() (*migrator.Migrator, error) {
 				},
 			},
 			&migrator.Migration{
-				Name: "Create user table",
+				Name: "Create order table",
 				Func: func(tx *sql.Tx) error {
 					if _, err := tx.Exec(`
 create table public.d_order_status
@@ -134,9 +134,9 @@ create table public.t_order
             references t_user,
     order_number varchar
         constraint t_account_t_order_number_fk
-            references t_order.
+            references t_order,
 	created_at      timestamp   default now() not null,
-    updated_at      timestamp   default now() not null,
+    updated_at      timestamp   default now() not null
 );`); err != nil {
 						return err
 					}

@@ -9,6 +9,7 @@ import (
 	"gofemart/internal/repositories"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // AuthMiddleware авторизовываем пользователя по токену и записываем его в контекст
@@ -19,6 +20,11 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			processNotExists("Authorization header is not exists", http.StatusUnauthorized, w)
 			return
 		}
+		if !strings.HasPrefix(tknString, "Bearer ") {
+			processNotExists("Authorization header is not exists", http.StatusUnauthorized, w)
+			return
+		}
+		tknString = strings.TrimPrefix(tknString, "Bearer ")
 		generator := NewJWTGenerator(config.Params.JWTKeys.Private, config.Params.JWTKeys.Public, config.Params.TokenExpiration)
 		tkn, err := generator.Parse(tknString)
 		if err != nil {

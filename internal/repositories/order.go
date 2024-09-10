@@ -2,6 +2,8 @@ package repositories
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"github.com/jmoiron/sqlx"
 	"gofemart/internal/models"
 	"time"
@@ -38,7 +40,7 @@ func (r *OrderRepository) UpdateOrder(order *models.Order) error {
 
 // GetOrdersExcludeOrdersWhereStatusIn получаем заказы с определёнными статусами
 // TODO выглядит не красиво(
-func (r *OrderRepository) GetOrdersExcludeOrdersWhereStatusIn(limit int, excludedNumbers []string, statuses ...string) ([]models.Order, error) {
+func (r *OrderRepository) GetOrdersExcludeOrdersWhereStatusIn(limit int, excludedNumbers []string, olderThen time.Time, statuses ...string) ([]models.Order, error) {
 	statusInt := make([]interface{}, 0, len(statuses))
 	excludedNumbersInt := make([]interface{}, 0, len(excludedNumbers))
 	wheres := make([]interface{}, 0, len(excludedNumbers)+len(statuses)+1)
@@ -58,10 +60,35 @@ func (r *OrderRepository) GetOrdersExcludeOrdersWhereStatusIn(limit int, exclude
 		return []models.Order{}, err
 	}
 	wheres = append(wheres, numbersVars...)
+	wheres = append(wheres, olderThen, olderThen)
 	wheres = append(wheres, limit)
-	sql := "SELECT * FROM t_order WHERE " + statusSQL + " AND " + excludedNumbersSQL + " LIMIT ?"
+	sql := "SELECT * FROM t_order WHERE " + statusSQL + " AND " + excludedNumbersSQL + " AND ((last_checked_at NOT NULL AND last_checked_at <= ?) OR (last_checked_at IS NULL AND created_at <= ?)) LIMIT ?"
 	var orders []models.Order
 	err = r.db.SelectContext(r.ctx, &orders, sql, wheres...)
 
+	return orders, err
+}
+
+func (r *OrderRepository) GetOrderByNumber(number string) (*models.Order, bool, error) {
+	var order models.Order
+	err := r.db.QueryRowxContext(r.ctx, "SELECT * FROM t_order WHERE number = $1", number).StructScan(&order)
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return &order, true, nil
+}
+
+func (r *OrderRepository) GetOrdersByUserWithAccrual(userId int64) ([]models.OrderWithAccrual, error) {
+	var orders []models.OrderWithAccrual
+	err := r.db.SelectContext(r.ctx, &orders, "SELECT t.*, ta.difference accrual FROM t_order t LEFT JOIN t_account ta ON t.number = ta.order_number AND ta.difference > 0 WHERE t.user_id = $1", userId)
+	return orders, err
+}
+
+func (r *OrderRepository) GetOrdersByUserWithdraw(userId int64) ([]models.OrderWithdraw, error) {
+	var orders []models.OrderWithdraw
+	err := r.db.SelectContext(r.ctx, &orders, "SELECT t.*, abs(ta.difference) accrual, ta.created_at processed_at FROM  t_order t INNER JOIN public.t_account ta on t.number = ta.order_number AND ta.difference < 0 WHERE t.user_id = $1;", userId)
 	return orders, err
 }

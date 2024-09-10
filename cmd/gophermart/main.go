@@ -8,12 +8,14 @@ import (
 	database "gofemart/internal/databse"
 	"gofemart/internal/databse/migrations"
 	"gofemart/internal/logger"
+	"gofemart/internal/ordercheck"
 	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -60,6 +62,9 @@ func runApplication() error {
 	if err != nil {
 		return err
 	}
+
+	ordercheck.CheckPool = ordercheck.NewPool(ctx, 1000, 10, time.Minute, config.Params.AccrualSystemAddress) // TODO конфигурация
+	defer ordercheck.CheckPool.Close()
 
 	wg := new(errgroup.Group)
 	server := initServer()

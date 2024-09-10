@@ -23,3 +23,8 @@ func NewAccount(orderNumber sql.NullString, userId int64, difference int) *Accou
 		UpdatedAt:   time.Now(),
 	}
 }
+
+type Balance struct {
+	Current   int `db:"current" json:"current"`
+	Withdrawn int `db:"withdrawn" json:"withdrawn"`
+}

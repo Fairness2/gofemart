@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/go-chi/chi/v5"
 	cMiddleware "github.com/go-chi/chi/v5/middleware"
+	"gofemart/cmd/gophermart/handlers/balance"
 	"gofemart/cmd/gophermart/handlers/login"
 	"gofemart/cmd/gophermart/handlers/orders"
 	"gofemart/internal/logger"
@@ -25,7 +26,14 @@ func getRouter() chi.Router {
 
 	router.Group(func(r chi.Router) {
 		r.Use(token.AuthMiddleware)
+
 		r.Post("/api/user/orders", orders.RegisterOrderHandler)
+		r.Get("/api/user/orders", orders.GetOrdersHandler)
+
+		r.Post("/api/user/balance/withdraw", balance.WithdrawHandler)
+		r.Get("/api/user/balance", balance.GetBalanceHandler)
+
+		r.Get("/api/user/withdrawals", orders.GetOrdersWithdrawHandler)
 	})
 
 	return router
