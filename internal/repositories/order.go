@@ -16,8 +16,6 @@ type OrderRepository struct {
 	ctx context.Context
 }
 
-var OrderR *OrderRepository
-
 func NewOrderRepository(ctx context.Context, db *sqlx.DB) *OrderRepository { // TODO заменить на интерфейс
 	return &OrderRepository{
 		ctx: ctx,
@@ -62,9 +60,9 @@ func (r *OrderRepository) GetOrdersExcludeOrdersWhereStatusIn(limit int, exclude
 	wheres = append(wheres, numbersVars...)
 	wheres = append(wheres, olderThen, olderThen)
 	wheres = append(wheres, limit)
-	sql := "SELECT * FROM t_order WHERE " + statusSQL + " AND " + excludedNumbersSQL + " AND ((last_checked_at NOT NULL AND last_checked_at <= ?) OR (last_checked_at IS NULL AND created_at <= ?)) LIMIT ?"
+	sqlStr := "SELECT * FROM t_order WHERE " + statusSQL + " AND " + excludedNumbersSQL + " AND ((last_checked_at NOT NULL AND last_checked_at <= ?) OR (last_checked_at IS NULL AND created_at <= ?)) LIMIT ?"
 	var orders []models.Order
-	err = r.db.SelectContext(r.ctx, &orders, sql, wheres...)
+	err = r.db.SelectContext(r.ctx, &orders, sqlStr, wheres...)
 
 	return orders, err
 }

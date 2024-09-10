@@ -112,7 +112,7 @@ func GetOrdersHandler(response http.ResponseWriter, request *http.Request) {
 	}
 }
 
-func GetOrdersWithdrawHandler(response http.ResponseWriter, request *http.Request) {
+func GetOrdersWwithdrawalsHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value("user").(*models.User)
 	if !ok {

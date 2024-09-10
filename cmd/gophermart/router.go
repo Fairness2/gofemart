@@ -33,7 +33,7 @@ func getRouter() chi.Router {
 		r.Post("/api/user/balance/withdraw", balance.WithdrawHandler)
 		r.Get("/api/user/balance", balance.GetBalanceHandler)
 
-		r.Get("/api/user/withdrawals", orders.GetOrdersWithdrawHandler)
+		r.Get("/api/user/withdrawals", orders.GetOrdersWwithdrawalsHandler)
 	})
 
 	return router
