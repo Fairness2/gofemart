@@ -2,7 +2,7 @@ package helpers
 
 import (
 	"github.com/stretchr/testify/assert"
-	"gmetrics/internal/logger"
+	"gofemart/internal/logger"
 	"io"
 	"net/http"
 	"net/http/httptest"
