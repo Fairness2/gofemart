@@ -11,7 +11,7 @@ const (
 	// DefaultLogLevel Уровень логирования по умолчанию
 	DefaultLogLevel = "info"
 	// DefaultDatabaseDSN подключение к базе данных
-	DefaultDatabaseDSN = "postgresql://postgres:example@127.0.0.1:5432/gofemart"
+	DefaultDatabaseDSN = "postgresql://postgres:postgres@postgres/praktikum?sslmode=disable"
 	// DefaultHashKey ключ шифрования по умолчанию
 	DefaultHashKey = ""
 	// DefaultAccrualSystemAddress адрес системы расчёта начислений по умолчанию
