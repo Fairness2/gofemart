@@ -87,7 +87,7 @@ func (r *OrderRepository) GetOrderByNumber(number string) (*models.Order, bool, 
 
 func (r *OrderRepository) GetOrdersByUserWithAccrual(userID int64) ([]models.OrderWithAccrual, error) {
 	var orders []models.OrderWithAccrual
-	err := r.db.SelectContext(r.ctx, &orders, "SELECT t.*, ta.difference accrual FROM t_order t LEFT JOIN t_account ta ON t.number = ta.order_number AND ta.difference > 0 WHERE t.user_id = $1", userID)
+	err := r.db.SelectContext(r.ctx, &orders, "SELECT t.*, CASE WHEN ta.difference NOTNULL THEN difference ELSE 0 END accrual FROM t_order t LEFT JOIN t_account ta ON t.number = ta.order_number AND ta.difference > 0 WHERE t.user_id = $1", userID)
 	return orders, err
 }
 
