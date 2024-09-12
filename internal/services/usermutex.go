@@ -20,32 +20,32 @@ func NewUserMutex() *UserMutex {
 	}
 }
 
-func (um *UserMutex) GetMutex(userId int64) (*sync.Mutex, bool) {
+func (um *UserMutex) GetMutex(userID int64) (*sync.Mutex, bool) {
 	um.mutex.RLock()
 	defer um.mutex.RUnlock()
-	mutex, ok := um.usersMap[userId]
+	mutex, ok := um.usersMap[userID]
 	return mutex, ok
 }
 
-func (um *UserMutex) SetMutex(userId int64) *sync.Mutex {
+func (um *UserMutex) SetMutex(userID int64) *sync.Mutex {
 	um.mutex.Lock()
 	defer um.mutex.Unlock()
-	if mutex, ok := um.usersMap[userId]; ok {
+	if mutex, ok := um.usersMap[userID]; ok {
 		return mutex
 	}
 	mutex := &sync.Mutex{}
-	um.usersMap[userId] = mutex
+	um.usersMap[userID] = mutex
 	return mutex
 }
 
-func (um *UserMutex) DeleteMutex(userId int64) {
+func (um *UserMutex) DeleteMutex(userID int64) {
 	um.mutex.Lock()
 	defer um.mutex.Unlock()
-	mutex, ok := um.usersMap[userId]
+	mutex, ok := um.usersMap[userID]
 	if !ok {
 		return
 	}
 	if mutex.TryLock() {
-		delete(um.usersMap, userId)
+		delete(um.usersMap, userID)
 	}
 }

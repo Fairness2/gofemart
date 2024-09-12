@@ -159,8 +159,8 @@ func (p *Pool) processOder(number string) {
 	accrualResponse, err := p.accrual(order.model)
 	if err != nil {
 		logger.Log.Error(err)
-		var tmrErr *tooManyRequestError
-		if ok := errors.Is(err, tmrErr); ok {
+		var tmrErr tooManyRequestError
+		if ok := errors.Is(err, &tmrErr); ok {
 			p.pause(tmrErr.pauseDuration)
 		}
 		return
@@ -247,7 +247,7 @@ func (p *Pool) processOrderAccrual(accrual *payloads.Accrual, order *models.Orde
 	case payloads.StatusAccrualInvalid:
 		order.StatusCode = models.StatusInvalid
 	case payloads.StatusAccrualProcessed:
-		if _, err := p.createNewAccount(order.Number, order.UserId, accrual.Accrual); err != nil {
+		if _, err := p.createNewAccount(order.Number, order.UserID, accrual.Accrual); err != nil {
 			return err
 		}
 		order.StatusCode = models.StatusProcessed
@@ -267,9 +267,9 @@ func (p *Pool) getOrderRepository() *repositories.OrderRepository {
 }
 
 // createNewAccount создаём новую запись о начислении
-func (p *Pool) createNewAccount(orderNumber string, userId int64, diff int) (*models.Account, error) {
+func (p *Pool) createNewAccount(orderNumber string, userID int64, diff int) (*models.Account, error) {
 	repository := p.getAccountRepository()
-	account := models.NewAccount(sql.NullString{String: orderNumber, Valid: true}, userId, diff)
+	account := models.NewAccount(sql.NullString{String: orderNumber, Valid: true}, userID, diff)
 	if err := repository.CreateAccount(account); err != nil {
 		return nil, err
 	}

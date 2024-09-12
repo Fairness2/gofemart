@@ -6,18 +6,18 @@ import (
 )
 
 type Account struct {
-	Id          int64          `db:"id"`
-	UserId      int64          `db:"user_id"`
+	ID          int64          `db:"id"`
+	UserID      int64          `db:"user_id"`
 	Difference  int            `db:"difference"`
 	OrderNumber sql.NullString `db:"order_number"`
 	CreatedAt   time.Time      `db:"created_at"`
 	UpdatedAt   time.Time      `db:"updated_at"`
 }
 
-func NewAccount(orderNumber sql.NullString, userId int64, difference int) *Account {
+func NewAccount(orderNumber sql.NullString, userID int64, difference int) *Account {
 	return &Account{
 		Difference:  difference,
-		UserId:      userId,
+		UserID:      userID,
 		OrderNumber: orderNumber,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),

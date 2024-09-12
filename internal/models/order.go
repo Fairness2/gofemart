@@ -9,17 +9,17 @@ import (
 
 type Order struct {
 	Number        string       `db:"number" json:"number"`
-	UserId        int64        `db:"user_id" json:"-"`
+	UserID        int64        `db:"user_id" json:"-"`
 	StatusCode    string       `db:"status_code" json:"status"`
 	CreatedAt     time.Time    `db:"created_at" json:"-"`
 	UpdatedAt     time.Time    `db:"updated_at" json:"updated_at"`
 	LastCheckedAt sql.NullTime `db:"last_checked_at" json:"-"`
 }
 
-func NewOrder(number string, userId int64) *Order {
+func NewOrder(number string, userID int64) *Order {
 	return &Order{
 		Number:        number,
-		UserId:        userId,
+		UserID:        userID,
 		StatusCode:    StatusNew,
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),

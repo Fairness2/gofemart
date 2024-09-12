@@ -12,6 +12,10 @@ import (
 	"strings"
 )
 
+type Key string
+
+var UserKey Key = "user"
+
 // AuthMiddleware авторизовываем пользователя по токену и записываем его в контекст
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +42,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			processNotExists("token doesnt has user id", http.StatusUnauthorized, w)
 			return
 		}
-		userId, err := strconv.ParseInt(idStr, 10, 64)
+		userID, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
 			logger.Log.Info(err)
 			processNotExists("user id is incorrect", http.StatusUnauthorized, w)
@@ -46,7 +50,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		userRepository := repositories.NewUserRepository(r.Context(), database.DBx)
-		user, exists, err := userRepository.GetUserById(userId)
+		user, exists, err := userRepository.GetUserByID(userID)
 		if err != nil {
 			setInternalError(err, w)
 			return
@@ -56,7 +60,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		newR := r.WithContext(context.WithValue(r.Context(), "user", user))
+		newR := r.WithContext(context.WithValue(r.Context(), UserKey, user))
 		next.ServeHTTP(w, newR)
 	})
 }

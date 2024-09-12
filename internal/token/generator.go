@@ -33,7 +33,7 @@ func NewJWTGenerator(pkey *rsa.PrivateKey, pubKey *rsa.PublicKey, expiration tim
 func (g *JWTGenerator) Generate(user *models.User) (string, error) {
 	claims := jwt.RegisteredClaims{
 		Issuer:    g.issuer,
-		Subject:   strconv.FormatInt(user.Id, 10),
+		Subject:   strconv.FormatInt(user.ID, 10),
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(g.expiration)),
 	}
 
@@ -48,7 +48,7 @@ func (g *JWTGenerator) Parse(tokenString string) (*jwt.Token, error) {
 		func(token *jwt.Token) (interface{}, error) {
 			// Don't forget to validate the alg is what you expect:
 			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 
 			return g.pubKey, nil

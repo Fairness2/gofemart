@@ -8,6 +8,7 @@ import (
 	"gofemart/internal/models"
 	"gofemart/internal/ordercheck"
 	"gofemart/internal/repositories"
+	"gofemart/internal/token"
 	"io"
 	"net/http"
 	"strings"
@@ -33,7 +34,7 @@ func RegisterOrderHandler(response http.ResponseWriter, request *http.Request) {
 	}
 
 	// Берём авторизованного пользователя
-	user, ok := request.Context().Value("user").(*models.User)
+	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
 		helpers.ProcessErrorWithStatus("User not found", http.StatusUnauthorized, response)
 		return
@@ -47,18 +48,18 @@ func RegisterOrderHandler(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 	if ok {
-		if order.UserId != user.Id {
+		if order.UserID != user.ID {
 			helpers.ProcessErrorWithStatus("order was loaded by another user", http.StatusConflict, response)
 			return
 		}
-		if order.UserId == user.Id {
+		if order.UserID == user.ID {
 			helpers.ProcessErrorWithStatus("order was already loaded", http.StatusOK, response)
 			return
 		}
 	}
 
 	// Создаём новый ордер и отправляем его в проверочную
-	order = models.NewOrder(strBody, user.Id)
+	order = models.NewOrder(strBody, user.ID)
 	if err := saveOrder(rep, order); err != nil {
 		helpers.SetInternalError(err, response)
 		return
@@ -84,14 +85,14 @@ func sendToQueue(order *models.Order) (bool, error) {
 
 func GetOrdersHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
-	user, ok := request.Context().Value("user").(*models.User)
+	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
 		helpers.ProcessErrorWithStatus("User not found", http.StatusUnauthorized, response)
 		return
 	}
 
 	rep := repositories.NewOrderRepository(request.Context(), database.DBx)
-	orders, err := rep.GetOrdersByUserWithAccrual(user.Id)
+	orders, err := rep.GetOrdersByUserWithAccrual(user.ID)
 	if err != nil {
 		helpers.SetInternalError(err, response)
 		return
@@ -114,14 +115,14 @@ func GetOrdersHandler(response http.ResponseWriter, request *http.Request) {
 
 func GetOrdersWwithdrawalsHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
-	user, ok := request.Context().Value("user").(*models.User)
+	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
 		helpers.ProcessErrorWithStatus("User not found", http.StatusUnauthorized, response)
 		return
 	}
 
 	rep := repositories.NewOrderRepository(request.Context(), database.DBx)
-	orders, err := rep.GetOrdersByUserWithdraw(user.Id)
+	orders, err := rep.GetOrdersByUserWithdraw(user.ID)
 	if err != nil {
 		helpers.SetInternalError(err, response)
 		return

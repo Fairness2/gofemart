@@ -85,14 +85,14 @@ func (r *OrderRepository) GetOrderByNumber(number string) (*models.Order, bool, 
 	return &order, true, nil
 }
 
-func (r *OrderRepository) GetOrdersByUserWithAccrual(userId int64) ([]models.OrderWithAccrual, error) {
+func (r *OrderRepository) GetOrdersByUserWithAccrual(userID int64) ([]models.OrderWithAccrual, error) {
 	var orders []models.OrderWithAccrual
-	err := r.db.SelectContext(r.ctx, &orders, "SELECT t.*, ta.difference accrual FROM t_order t LEFT JOIN t_account ta ON t.number = ta.order_number AND ta.difference > 0 WHERE t.user_id = $1", userId)
+	err := r.db.SelectContext(r.ctx, &orders, "SELECT t.*, ta.difference accrual FROM t_order t LEFT JOIN t_account ta ON t.number = ta.order_number AND ta.difference > 0 WHERE t.user_id = $1", userID)
 	return orders, err
 }
 
-func (r *OrderRepository) GetOrdersByUserWithdraw(userId int64) ([]models.OrderWithdraw, error) {
+func (r *OrderRepository) GetOrdersByUserWithdraw(userID int64) ([]models.OrderWithdraw, error) {
 	var orders []models.OrderWithdraw
-	err := r.db.SelectContext(r.ctx, &orders, "SELECT t.number, abs(ta.difference) accrual, ta.created_at processed_at FROM  t_order t INNER JOIN public.t_account ta on t.number = ta.order_number AND ta.difference < 0 WHERE t.user_id = $1;", userId)
+	err := r.db.SelectContext(r.ctx, &orders, "SELECT t.number, abs(ta.difference) accrual, ta.created_at processed_at FROM  t_order t INNER JOIN public.t_account ta on t.number = ta.order_number AND ta.difference < 0 WHERE t.user_id = $1;", userID)
 	return orders, err
 }

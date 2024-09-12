@@ -13,6 +13,7 @@ import (
 	"gofemart/internal/payloads"
 	"gofemart/internal/repositories"
 	"gofemart/internal/services"
+	"gofemart/internal/token"
 	"io"
 	"net/http"
 )
@@ -59,7 +60,7 @@ func WithdrawHandler(response http.ResponseWriter, request *http.Request) {
 	}
 
 	// Берём авторизованного пользователя
-	user, ok := request.Context().Value("user").(*models.User)
+	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
 		helpers.ProcessErrorWithStatus("User not found", http.StatusUnauthorized, response)
 		return
@@ -111,13 +112,13 @@ func getBalanceService(ctx context.Context) *services.BalanceService {
 
 func GetBalanceHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
-	user, ok := request.Context().Value("user").(*models.User)
+	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
 		helpers.ProcessErrorWithStatus("User not found", http.StatusUnauthorized, response)
 		return
 	}
 	rep := repositories.NewAccountRepository(request.Context(), database.DBx)
-	bal, err := rep.GetBalance(user.Id)
+	bal, err := rep.GetBalance(user.ID)
 	if err != nil {
 		helpers.SetInternalError(err, response)
 		return

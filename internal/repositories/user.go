@@ -53,7 +53,7 @@ func (r *UserRepository) CreateUser(user *models.User) error {
 		return err
 	}
 	row := smth.QueryRowxContext(r.ctx, user)
-	return row.Scan(&user.Id)
+	return row.Scan(&user.ID)
 }
 
 func (r *UserRepository) GetUserByLogin(login string) (*models.User, bool, error) {
@@ -68,7 +68,7 @@ func (r *UserRepository) GetUserByLogin(login string) (*models.User, bool, error
 	return &user, true, nil
 }
 
-func (r *UserRepository) GetUserById(id int64) (*models.User, bool, error) {
+func (r *UserRepository) GetUserByID(id int64) (*models.User, bool, error) {
 	var user models.User
 	err := r.db.QueryRowxContext(r.ctx, "SELECT id, login, password_hash FROM t_user WHERE id = $1", id).StructScan(&user)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {

@@ -24,18 +24,18 @@ func NewBalanceService(ctx context.Context) *BalanceService {
 
 // Spend списываем средства со счёта
 func (s *BalanceService) Spend(user *models.User, sum int, order *models.Order) error {
-	userMutex, exists := UserMutexInstance.GetMutex(user.Id)
+	userMutex, exists := UserMutexInstance.GetMutex(user.ID)
 	if !exists {
-		userMutex = UserMutexInstance.SetMutex(user.Id)
+		userMutex = UserMutexInstance.SetMutex(user.ID)
 	}
 	userMutex.Lock()
 	defer func() {
 		userMutex.Unlock()
-		UserMutexInstance.DeleteMutex(user.Id)
+		UserMutexInstance.DeleteMutex(user.ID)
 	}()
 
 	rep := s.getAccountRepository()
-	balanceSum, err := rep.GetSum(user.Id)
+	balanceSum, err := rep.GetSum(user.ID)
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func (s *BalanceService) Spend(user *models.User, sum int, order *models.Order) 
 	}
 
 	newAcc := models.Account{
-		UserId:     user.Id,
+		UserID:     user.ID,
 		Difference: -sum,
 		OrderNumber: sql.NullString{
 			String: order.Number,

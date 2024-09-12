@@ -29,13 +29,13 @@ func (r *AccountRepository) CreateAccount(account *models.Account) error {
 		return err
 	}
 	row := smth.QueryRowxContext(r.ctx, account)
-	return row.Scan(&account.Id)
+	return row.Scan(&account.ID)
 }
 
 // GetSum Получаем текущий баланс пользователя
-func (r *AccountRepository) GetSum(userId int64) (int, error) {
+func (r *AccountRepository) GetSum(userID int64) (int, error) {
 	var sum int
-	row := r.db.QueryRowContext(r.ctx, "SELECT SUM(difference) FROM t_account WHERE user_id = $1", userId)
+	row := r.db.QueryRowContext(r.ctx, "SELECT SUM(difference) FROM t_account WHERE user_id = $1", userID)
 	if row.Err() != nil {
 		return 0, row.Err()
 	}
@@ -46,9 +46,9 @@ func (r *AccountRepository) GetSum(userId int64) (int, error) {
 	return sum, nil
 }
 
-func (r *AccountRepository) GetBalance(userId int64) (*models.Balance, error) { // TODO транзакция для того, чтобы зафиксировать состояние таблицы
+func (r *AccountRepository) GetBalance(userID int64) (*models.Balance, error) { // TODO транзакция для того, чтобы зафиксировать состояние таблицы
 	balance := &models.Balance{}
-	row := r.db.QueryRowxContext(r.ctx, "SELECT sum(CASE WHEN difference > 0 THEN difference ELSE 0 END) current, sum(CASE WHEN difference < 0 THEN abs(difference) ELSE 0 END) withdrawn FROM t_account WHERE user_id = $1", userId)
+	row := r.db.QueryRowxContext(r.ctx, "SELECT sum(CASE WHEN difference > 0 THEN difference ELSE 0 END) current, sum(CASE WHEN difference < 0 THEN abs(difference) ELSE 0 END) withdrawn FROM t_account WHERE user_id = $1", userID)
 	if row.Err() != nil {
 		return nil, row.Err()
 	}
