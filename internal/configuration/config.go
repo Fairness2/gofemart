@@ -15,7 +15,7 @@ const (
 	// DefaultHashKey ключ шифрования по умолчанию
 	DefaultHashKey = ""
 	// DefaultAccrualSystemAddress адрес системы расчёта начислений по умолчанию
-	DefaultAccrualSystemAddress = "localhost:8480"
+	DefaultAccrualSystemAddress = "http://localhost:8480"
 	// DefaultPrivateKeyPath Путь к приватному ключу для JWT по умолчанию
 	DefaultPrivateKeyPath = ""
 	// DefaultPublicKeyPath Путь к публичному ключу для JWT по умолчанию

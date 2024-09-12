@@ -59,7 +59,7 @@ func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Dur
 	inChanel := make(chan string, queueSize)
 	poolContext, cancel := context.WithCancel(ctx)
 	client := resty.New()
-	client.SetBaseURL(accrualURL)
+	client = client.SetBaseURL(accrualURL)
 	pool := &Pool{
 		//inWork:   make([]*models.Order, 0, workerCount),
 		mutex:             sync.RWMutex{},
@@ -135,21 +135,24 @@ func (p *Pool) finishWork() {
 }
 
 // poolInWork взятие в работу ордера
-func (p *Pool) poolInWork(number string) *WorkedOrder {
+func (p *Pool) poolInWork(number string) (*WorkedOrder, bool) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	if order, ok := p.orderMap[number]; ok {
+		if order.inWork {
+			return nil, false
+		}
 		order.inWork = true
-		return order
+		return order, true
 	}
-	return nil
+	return nil, false
 }
 
 // processOder обрабатываем заказ, запрашивая информацию у внешней системы
 func (p *Pool) processOder(number string) {
-	order := p.poolInWork(number)
+	order, ok := p.poolInWork(number)
 	// Если заказ не найден, то пропускаем его
-	if order == nil || order.inWork {
+	if order == nil || !ok {
 		return
 	}
 	defer p.removeFromWork(number)

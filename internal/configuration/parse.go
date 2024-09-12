@@ -67,7 +67,7 @@ func parseFromCli(cnf *CliConfig) error {
 	flag.StringVar(&cnf.Address, "a", DefaultServerURL, "address and port to run server")
 	flag.StringVar(&cnf.LogLevel, "ll", DefaultLogLevel, "level of logging")
 	flag.StringVar(&cnf.DatabaseDSN, "d", DefaultDatabaseDSN, "database connection")
-	flag.StringVar(&cnf.AccrualSystemAddress, "к", DefaultHashKey, "accrual system address")
+	flag.StringVar(&cnf.AccrualSystemAddress, "к", DefaultAccrualSystemAddress, "accrual system address")
 	flag.StringVar(&cnf.HashKey, "k", DefaultHashKey, "encrypted key")
 	flag.StringVar(&cnf.PrivateKeyPath, "pk", DefaultPrivateKeyPath, "path to private key")
 	flag.StringVar(&cnf.PublicKeyPath, "puk", DefaultPublicKeyPath, "path to public key")

@@ -37,23 +37,36 @@ func WithdrawHandler(response http.ResponseWriter, request *http.Request) {
 	}
 
 	rep := repositories.NewOrderRepository(request.Context(), database.DBx)
-	order, exists, err := rep.GetOrderByNumber(body.OrderNumber)
+	_, exists, err := rep.GetOrderByNumber(body.OrderNumber)
 	if err != nil {
 		helpers.SetInternalError(err, response)
 		return
 	}
+	if exists {
+		helpers.ProcessErrorWithStatus("Order already exists", http.StatusUnprocessableEntity, response)
+		return
+	}
+
+	accrualRep := repositories.NewAccountRepository(request.Context(), database.DBx)
+	_, exists, err = accrualRep.GetWithdrawByOrder(body.OrderNumber)
+	if err != nil {
+		helpers.SetInternalError(err, response)
+		return
+	}
+	if exists {
+		helpers.ProcessErrorWithStatus("Withdraw already exists", http.StatusUnprocessableEntity, response)
+		return
+	}
+
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value("user").(*models.User)
 	if !ok {
 		helpers.ProcessErrorWithStatus("User not found", http.StatusUnauthorized, response)
 		return
 	}
-	if !exists || order.UserId != user.Id {
-		helpers.ProcessErrorWithStatus("Order doesnt exist", http.StatusUnprocessableEntity, response)
-		return
-	}
 
 	service := getBalanceService(request.Context())
+	order := &models.Order{Number: body.OrderNumber}
 	if err := service.Spend(user, body.Sum, order); err != nil {
 		if errors.Is(err, services.ErrorNotEnoughItems) {
 			helpers.ProcessErrorWithStatus(err.Error(), http.StatusPaymentRequired, response)

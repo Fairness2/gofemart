@@ -53,6 +53,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 		if !exists {
 			processNotExists("user does not exist", http.StatusUnauthorized, w)
+			return
 		}
 
 		newR := r.WithContext(context.WithValue(r.Context(), "user", user))

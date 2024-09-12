@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -26,12 +27,30 @@ func NewOrder(number string, userId int64) *Order {
 	}
 }
 
-type OrderWithAccrual struct {
-	Order
-	Accrual int `db:"accrual" json:"accrual,omitempty"`
+type JSONTime struct {
+	time.Time
 }
 
-func (o OrderWithAccrual) MarshalJSON() ([]byte, error) {
+func (jt *JSONTime) Scan(src interface{}) error {
+	var ok bool
+	jt.Time, ok = src.(time.Time)
+	if !ok {
+		return fmt.Errorf("cannot scan type %T into JSONTime: %v", src, src)
+	}
+	return nil
+}
+
+func (jt JSONTime) MarshalJSON() ([]byte, error) {
+	return json.Marshal(jt.Time.Format(time.RFC3339))
+}
+
+type OrderWithAccrual struct {
+	Order
+	UpdatedAt JSONTime `db:"updated_at" json:"updated_at"`
+	Accrual   int      `db:"accrual" json:"accrual,omitempty"`
+}
+
+/*func (o OrderWithAccrual) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		OrderWithAccrual
 		UpdatedAt string `json:"updated_at"`
@@ -39,15 +58,15 @@ func (o OrderWithAccrual) MarshalJSON() ([]byte, error) {
 		OrderWithAccrual: o,
 		UpdatedAt:        o.UpdatedAt.Format(time.RFC3339),
 	})
-}
+}*/
 
 type OrderWithdraw struct {
-	Order
-	Accrual     int       `db:"accrual" json:"sum,omitempty"`
-	ProcessedAt time.Time `db:"processed_at" json:"processed_at"`
+	Number      string   `db:"number" json:"order"`
+	Accrual     int      `db:"accrual" json:"sum,omitempty"`
+	ProcessedAt JSONTime `db:"processed_at" json:"processed_at"`
 }
 
-func (o OrderWithdraw) MarshalJSON() ([]byte, error) {
+/*func (o OrderWithdraw) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		OrderWithdraw
 		UpdatedAt   string `json:"-"`
@@ -56,4 +75,4 @@ func (o OrderWithdraw) MarshalJSON() ([]byte, error) {
 		OrderWithdraw: o,
 		UpdatedAt:     o.ProcessedAt.Format(time.RFC3339),
 	})
-}
+}*/

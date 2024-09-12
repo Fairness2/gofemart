@@ -51,7 +51,7 @@ func RegisterOrderHandler(response http.ResponseWriter, request *http.Request) {
 			helpers.ProcessErrorWithStatus("order was loaded by another user", http.StatusConflict, response)
 			return
 		}
-		if order.UserId != user.Id {
+		if order.UserId == user.Id {
 			helpers.ProcessErrorWithStatus("order was already loaded", http.StatusOK, response)
 			return
 		}

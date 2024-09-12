@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	"gofemart/internal/models"
+	"strings"
 	"time"
 )
 
@@ -39,30 +41,34 @@ func (r *OrderRepository) UpdateOrder(order *models.Order) error {
 // GetOrdersExcludeOrdersWhereStatusIn получаем заказы с определёнными статусами
 // TODO выглядит не красиво(
 func (r *OrderRepository) GetOrdersExcludeOrdersWhereStatusIn(limit int, excludedNumbers []string, olderThen time.Time, statuses ...string) ([]models.Order, error) {
-	statusInt := make([]interface{}, 0, len(statuses))
-	excludedNumbersInt := make([]interface{}, 0, len(excludedNumbers))
-	wheres := make([]interface{}, 0, len(excludedNumbers)+len(statuses)+1)
-	for i, v := range statuses {
-		statusInt[i] = v
+	wheres := make([]interface{}, 0, len(excludedNumbers)+len(statuses)+3)
+	sqlStr := "SELECT * FROM t_order WHERE "
+	i := 1
+	if len(statuses) > 0 {
+		//iStr := strconv.Itoa(i)
+		var placeholders []string
+		for _, v := range statuses {
+			placeholders = append(placeholders, fmt.Sprintf("$%d", i))
+			wheres = append(wheres, v)
+			i++
+		}
+		sqlStr += fmt.Sprintf("status_code IN (%s) AND ", strings.Join(placeholders, ", "))
 	}
-	for i, v := range excludedNumbers {
-		excludedNumbersInt[i] = v
+
+	if len(excludedNumbers) > 0 {
+		var placeholders []string
+		for _, v := range excludedNumbers {
+			placeholders = append(placeholders, fmt.Sprintf("$%d", i))
+			wheres = append(wheres, v)
+			i++
+		}
+		sqlStr += fmt.Sprintf("number NOT IN (%s) AND ", strings.Join(placeholders, ", "))
 	}
-	statusSQL, statusVars, err := sqlx.In("status_code IN (?)", statusInt...)
-	if err != nil {
-		return []models.Order{}, err
-	}
-	wheres = append(wheres, statusVars...)
-	excludedNumbersSQL, numbersVars, err := sqlx.In("number NOT IN (?)", excludedNumbersInt...)
-	if err != nil {
-		return []models.Order{}, err
-	}
-	wheres = append(wheres, numbersVars...)
-	wheres = append(wheres, olderThen, olderThen)
-	wheres = append(wheres, limit)
-	sqlStr := "SELECT * FROM t_order WHERE " + statusSQL + " AND " + excludedNumbersSQL + " AND ((last_checked_at NOT NULL AND last_checked_at <= ?) OR (last_checked_at IS NULL AND created_at <= ?)) LIMIT ?"
+	sqlStr += fmt.Sprintf("((last_checked_at NOTNULL AND last_checked_at <= $%d) OR (last_checked_at IS NULL AND created_at <= $%d)) LIMIT $%d", i, i+1, i+2)
+	wheres = append(wheres, olderThen, olderThen, limit)
+
 	var orders []models.Order
-	err = r.db.SelectContext(r.ctx, &orders, sqlStr, wheres...)
+	err := r.db.SelectContext(r.ctx, &orders, sqlStr, wheres...)
 
 	return orders, err
 }
@@ -87,6 +93,6 @@ func (r *OrderRepository) GetOrdersByUserWithAccrual(userId int64) ([]models.Ord
 
 func (r *OrderRepository) GetOrdersByUserWithdraw(userId int64) ([]models.OrderWithdraw, error) {
 	var orders []models.OrderWithdraw
-	err := r.db.SelectContext(r.ctx, &orders, "SELECT t.*, abs(ta.difference) accrual, ta.created_at processed_at FROM  t_order t INNER JOIN public.t_account ta on t.number = ta.order_number AND ta.difference < 0 WHERE t.user_id = $1;", userId)
+	err := r.db.SelectContext(r.ctx, &orders, "SELECT t.number, abs(ta.difference) accrual, ta.created_at processed_at FROM  t_order t INNER JOIN public.t_account ta on t.number = ta.order_number AND ta.difference < 0 WHERE t.user_id = $1;", userId)
 	return orders, err
 }

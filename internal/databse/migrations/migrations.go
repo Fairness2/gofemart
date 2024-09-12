@@ -86,8 +86,7 @@ create table public.t_order
     status_code     varchar(10) default 'NEW' not null
         constraint t_order_d_order_status_code_fk
             references public.d_order_status (code),
-    last_checked_at timestamp,
-	accrual_sum integer
+    last_checked_at timestamp
 );
 `); err != nil {
 						return err
@@ -156,6 +155,18 @@ create table public.t_order
 						return err
 					}
 					if _, err := tx.Exec("create index if not exists t_account_user_id_index on t_account (user_id);"); err != nil {
+						return err
+					}
+					return nil
+				},
+			},
+			&migrator.Migration{
+				Name: "Delete foreign key from t_account and add index",
+				Func: func(tx *sql.Tx) error {
+					if _, err := tx.Exec("create index t_account_order_number_index on public.t_account (order_number);"); err != nil {
+						return err
+					}
+					if _, err := tx.Exec("alter table public.t_account\n    drop constraint t_account_t_order_number_fk;"); err != nil {
 						return err
 					}
 					return nil
