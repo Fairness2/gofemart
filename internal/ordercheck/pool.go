@@ -92,6 +92,9 @@ func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Dur
 
 // Close функция закрытия пула, закрываем локальный контекст, ждём завершения всех воркеров, закрываем канал очереди
 func (p *Pool) Close() {
+	if p.closeFlag {
+		return
+	}
 	p.closeFlag = true
 	p.cancel()
 	p.wg.Wait()
@@ -120,7 +123,10 @@ func (p *Pool) pushFromQueue() {
 		select {
 		case <-p.ctx.Done():
 			return
-		case number := <-p.inChanel:
+		case number, ok := <-p.inChanel:
+			if !ok {
+				return
+			}
 			if !p.checkInWork(number) {
 				p.processOder(number)
 			}
@@ -288,6 +294,7 @@ func (p *Pool) checkInWork(number string) bool {
 
 // pushFromDB периодическое пополнение очереди из базы данных
 func (p *Pool) pushFromDB(dur time.Duration) {
+	defer p.wg.Done()
 	ticker := time.NewTicker(dur)
 	for {
 		select {

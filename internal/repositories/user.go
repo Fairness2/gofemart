@@ -23,8 +23,6 @@ type UserRepository struct {
 	ctx context.Context
 }
 
-var UserR *UserRepository
-
 func NewUserRepository(ctx context.Context, db *sqlx.DB) *UserRepository { // TODO заменить на интерфейс
 	return &UserRepository{
 		ctx: ctx,

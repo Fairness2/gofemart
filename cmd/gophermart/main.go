@@ -90,6 +90,7 @@ func runApplication() error {
 	if err = wg.Wait(); err != nil {
 		logger.Log.Error(err)
 	}
+	logger.Log.Info("End Server")
 	return nil
 }
 
