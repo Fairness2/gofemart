@@ -59,6 +59,8 @@ func RegistrationHandler(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	response.Header().Set("Authorization", "Bearer "+tkn)
+
 	if rErr := helpers.SetHTTPResponse(response, http.StatusOK, responseBody); rErr != nil {
 		logger.Log.Error(rErr)
 	}
@@ -169,6 +171,8 @@ func LoginHandler(response http.ResponseWriter, request *http.Request) {
 		helpers.SetInternalError(err, response)
 		return
 	}
+
+	response.Header().Set("Authorization", "Bearer "+tkn)
 
 	if rErr := helpers.SetHTTPResponse(response, http.StatusOK, responseBody); rErr != nil {
 		logger.Log.Error(rErr)
