@@ -19,6 +19,7 @@ import (
 )
 
 func main() {
+	log.Println("Start program")
 	// Устанавливаем настройки
 	cnf, err := config.Parse()
 	if err != nil {
