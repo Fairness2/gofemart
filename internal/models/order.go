@@ -47,7 +47,7 @@ func (jt JSONTime) MarshalJSON() ([]byte, error) {
 type OrderWithAccrual struct {
 	Order
 	UpdatedAt JSONTime `db:"updated_at" json:"updated_at"`
-	Accrual   int      `db:"accrual" json:"accrual,omitempty"`
+	Accrual   float64  `db:"accrual" json:"accrual,omitempty"`
 }
 
 /*func (o OrderWithAccrual) MarshalJSON() ([]byte, error) {
@@ -62,7 +62,7 @@ type OrderWithAccrual struct {
 
 type OrderWithdraw struct {
 	Number      string   `db:"number" json:"order"`
-	Accrual     int      `db:"accrual" json:"sum,omitempty"`
+	Accrual     float64  `db:"accrual" json:"sum,omitempty"`
 	ProcessedAt JSONTime `db:"processed_at" json:"processed_at"`
 }
 

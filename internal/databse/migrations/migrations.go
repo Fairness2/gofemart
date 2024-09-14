@@ -172,6 +172,15 @@ create table public.t_order
 					return nil
 				},
 			},
+			&migrator.Migration{
+				Name: "Change duration to float",
+				Func: func(tx *sql.Tx) error {
+					if _, err := tx.Exec("alter table public.t_account alter column difference type double precision using difference::double precision;"); err != nil {
+						return err
+					}
+					return nil
+				},
+			},
 		),
 	)
 

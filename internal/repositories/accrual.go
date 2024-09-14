@@ -33,8 +33,8 @@ func (r *AccountRepository) CreateAccount(account *models.Account) error {
 }
 
 // GetSum Получаем текущий баланс пользователя
-func (r *AccountRepository) GetSum(userID int64) (int, error) {
-	var sum int
+func (r *AccountRepository) GetSum(userID int64) (float64, error) {
+	var sum float64
 	row := r.db.QueryRowContext(r.ctx, "SELECT SUM(difference) FROM t_account WHERE user_id = $1", userID)
 	if row.Err() != nil {
 		return 0, row.Err()
@@ -48,7 +48,7 @@ func (r *AccountRepository) GetSum(userID int64) (int, error) {
 
 func (r *AccountRepository) GetBalance(userID int64) (*models.Balance, error) { // TODO транзакция для того, чтобы зафиксировать состояние таблицы
 	balance := &models.Balance{}
-	row := r.db.QueryRowxContext(r.ctx, "SELECT sum(CASE WHEN difference > 0 THEN difference ELSE 0 END) current, sum(CASE WHEN difference < 0 THEN abs(difference) ELSE 0 END) withdrawn FROM t_account WHERE user_id = $1", userID)
+	row := r.db.QueryRowxContext(r.ctx, "SELECT COALESCE(sum(difference), 0) current, COALESCE(sum(CASE WHEN difference < 0 THEN abs(difference) ELSE 0 END), 0) withdrawn FROM t_account WHERE user_id = $1", userID)
 	if row.Err() != nil {
 		return nil, row.Err()
 	}

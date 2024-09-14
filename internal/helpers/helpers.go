@@ -16,6 +16,9 @@ import (
 // - message: the message to write to the response
 func SetHTTPResponse(response http.ResponseWriter, status int, message []byte) error {
 	response.WriteHeader(status)
+	if status == http.StatusNoContent {
+		return nil
+	}
 	_, err := response.Write(message) // TODO подумать, нужно ли
 	return err
 }

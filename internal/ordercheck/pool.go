@@ -11,6 +11,7 @@ import (
 	"gofemart/internal/models"
 	"gofemart/internal/payloads"
 	"gofemart/internal/repositories"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -56,6 +57,7 @@ type Pool struct {
 var CheckPool *Pool
 
 func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Duration, accrualURL string) *Pool {
+	logger.Log.Infow("New pool", "queueSize", queueSize, "workerCount", workerCount, "pause", pause, "accrualURL", accrualURL)
 	inChanel := make(chan string, queueSize)
 	poolContext, cancel := context.WithCancel(ctx)
 	client := resty.New()
@@ -71,7 +73,7 @@ func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Dur
 		pauseDuration:     pause,
 		client:            client,
 		senderMutex:       sync.RWMutex{},
-		olderThenDuration: time.Minute * 10,
+		olderThenDuration: time.Second * 5,
 	}
 
 	// Запускаем проверку закрытия
@@ -85,13 +87,14 @@ func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Dur
 
 	// Запускаем проверку базы данных
 	pool.wg.Add(1)
-	go pool.pushFromDB(time.Minute)
+	go pool.pushFromDB(5 * time.Second)
 
 	return pool
 }
 
 // Close функция закрытия пула, закрываем локальный контекст, ждём завершения всех воркеров, закрываем канал очереди
 func (p *Pool) Close() {
+	logger.Log.Info("Close pool")
 	if p.closeFlag {
 		return
 	}
@@ -103,16 +106,21 @@ func (p *Pool) Close() {
 
 // Push adds an Order to the Pool's queue if the queue is not full and the Pool is not closed, returning success status and error.
 func (p *Pool) Push(order *models.Order) (bool, error) { // TODO ограниченная очередь
+	logger.Log.Infow("Push order to pool", "order", order.Number)
 	if p.closeFlag {
 		return false, ErrorPoolClosed
 	}
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	if len(p.inChanel) < cap(p.inChanel) {
+	lenChanel := len(p.inChanel)
+	capChanel := cap(p.inChanel)
+	if lenChanel < capChanel {
+		logger.Log.Infow("Push order to queue", "order", order.Number, "len", lenChanel, "cap", capChanel)
 		p.orderMap[order.Number] = &WorkedOrder{model: order}
 		p.inChanel <- order.Number
 		return true, nil
 	}
+	logger.Log.Infow("Order not pushed to queue", "order", order.Number, "len", lenChanel, "cap", capChanel)
 	return false, nil
 }
 
@@ -122,8 +130,10 @@ func (p *Pool) pushFromQueue() {
 	for {
 		select {
 		case <-p.ctx.Done():
+			logger.Log.Info("Pool context closed. Push from queue stopped")
 			return
 		case number, ok := <-p.inChanel:
+			logger.Log.Infow("Push from queue", "number", number, "ok", ok)
 			if !ok {
 				return
 			}
@@ -136,12 +146,14 @@ func (p *Pool) pushFromQueue() {
 
 // finishWork закрываем пул
 func (p *Pool) finishWork() {
+	logger.Log.Info("Finish work")
 	<-p.ctx.Done()
 	p.Close()
 }
 
 // poolInWork взятие в работу ордера
 func (p *Pool) poolInWork(number string) (*WorkedOrder, bool) {
+	logger.Log.Infow("Pool in work", "number", number)
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	if order, ok := p.orderMap[number]; ok {
@@ -156,6 +168,7 @@ func (p *Pool) poolInWork(number string) (*WorkedOrder, bool) {
 
 // processOder обрабатываем заказ, запрашивая информацию у внешней системы
 func (p *Pool) processOder(number string) {
+	logger.Log.Infow("Process order", "number", number)
 	order, ok := p.poolInWork(number)
 	// Если заказ не найден, то пропускаем его
 	if order == nil || !ok {
@@ -178,6 +191,7 @@ func (p *Pool) processOder(number string) {
 
 // removeFromWork снимаем флаг взятия в работу
 func (p *Pool) removeFromWork(number string) {
+	logger.Log.Infow("Remove from work", "number", number)
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	if order, ok := p.orderMap[number]; ok {
@@ -187,6 +201,7 @@ func (p *Pool) removeFromWork(number string) {
 
 // deleteFromMap удаляем отработанный заказ
 func (p *Pool) deleteFromMap(number string) {
+	logger.Log.Infow("Delete from map", "number", number)
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	delete(p.orderMap, number)
@@ -194,6 +209,7 @@ func (p *Pool) deleteFromMap(number string) {
 
 // pause Если мы попали в блок от системы, делаем паузу между запросами
 func (p *Pool) pause(duration time.Duration) {
+	logger.Log.Infow("Pause", "duration", duration)
 	p.senderMutex.Lock()
 	defer p.senderMutex.RUnlock()
 	<-time.After(duration)
@@ -201,6 +217,7 @@ func (p *Pool) pause(duration time.Duration) {
 
 // accrual запрашиваем статус заказа в системе начислений
 func (p *Pool) accrual(order *models.Order) (*payloads.Accrual, error) {
+	logger.Log.Infow("Accrual", "order", order.Number)
 	p.senderMutex.RLock()
 	defer p.senderMutex.RUnlock()
 	url := "/api/orders/" + order.Number
@@ -211,11 +228,14 @@ func (p *Pool) accrual(order *models.Order) (*payloads.Accrual, error) {
 		return nil, err
 	}
 	switch response.StatusCode() {
-	case 204:
+	case http.StatusNoContent:
+		logger.Log.Infow("Order not registered", "order", order.Number, "status", http.StatusNoContent)
 		return nil, ErrorOrderNotRegistered
-	case 500:
+	case http.StatusInternalServerError:
+		logger.Log.Infow("Accrual check failed", "order", order.Number, "status", http.StatusInternalServerError)
 		return nil, ErrorInternalAccrual
-	case 429:
+	case http.StatusTooManyRequests:
+		logger.Log.Infow("Too many requests", "order", order.Number, "status", 429)
 		pauseDuration := p.pauseDuration
 		if pauseHeader := response.Header().Get("Retry-After"); pauseHeader != "" {
 			pauseHeaderValue, err := time.ParseDuration(pauseHeader)
@@ -227,6 +247,7 @@ func (p *Pool) accrual(order *models.Order) (*payloads.Accrual, error) {
 		}
 		return nil, &tooManyRequestError{InternalError: ErrorTooManyRequests, pauseDuration: pauseDuration}
 	case 200:
+		logger.Log.Infow("Order registered", "order", order.Number, "status", 200)
 		return p.processAccrualResponse(response)
 	default:
 		return nil, errors.New("unknown accrual error")
@@ -246,6 +267,7 @@ func (p *Pool) processAccrualResponse(res *resty.Response) (*payloads.Accrual, e
 
 // processOrderAccrual обрабатываем ответ системы начислений, обновляем заказ и создаём запись в счёте пользователя
 func (p *Pool) processOrderAccrual(accrual *payloads.Accrual, order *models.Order) error {
+	logger.Log.Infow("Process order accrual", "order", order.Number, "status", accrual.Status)
 	order.LastCheckedAt = sql.NullTime{Time: time.Now(), Valid: true}
 	switch accrual.Status {
 	case payloads.StatusAccrualProcessing, payloads.StatusAccrualRegistered:
@@ -264,16 +286,19 @@ func (p *Pool) processOrderAccrual(accrual *payloads.Accrual, order *models.Orde
 
 // getAccountRepository создаём репозиторий для начислений
 func (p *Pool) getAccountRepository() *repositories.AccountRepository {
+	logger.Log.Infow("Get account repository")
 	return repositories.NewAccountRepository(p.ctx, database.DBx)
 }
 
 // getOrderRepository создаём репозиторий заказов
 func (p *Pool) getOrderRepository() *repositories.OrderRepository {
+	logger.Log.Infow("Get order repository")
 	return repositories.NewOrderRepository(p.ctx, database.DBx)
 }
 
 // createNewAccount создаём новую запись о начислении
-func (p *Pool) createNewAccount(orderNumber string, userID int64, diff int) (*models.Account, error) {
+func (p *Pool) createNewAccount(orderNumber string, userID int64, diff float64) (*models.Account, error) {
+	logger.Log.Infow("Create new account", "orderNumber", orderNumber, "userID", userID, "diff", diff)
 	repository := p.getAccountRepository()
 	account := models.NewAccount(sql.NullString{String: orderNumber, Valid: true}, userID, diff)
 	if err := repository.CreateAccount(account); err != nil {
@@ -284,6 +309,7 @@ func (p *Pool) createNewAccount(orderNumber string, userID int64, diff int) (*mo
 
 // checkInWork проверяем находится ли заказ в работе
 func (p *Pool) checkInWork(number string) bool {
+	logger.Log.Infow("Check in work", "number", number)
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 	if order, ok := p.orderMap[number]; ok {
@@ -294,7 +320,11 @@ func (p *Pool) checkInWork(number string) bool {
 
 // pushFromDB периодическое пополнение очереди из базы данных
 func (p *Pool) pushFromDB(dur time.Duration) {
+	logger.Log.Infow("Push from db", "duration", dur)
 	defer p.wg.Done()
+	if err := p.pushDBProcessingOrdersToQueue(); err != nil {
+		logger.Log.Error(err)
+	}
 	ticker := time.NewTicker(dur)
 	for {
 		select {
@@ -311,6 +341,7 @@ func (p *Pool) pushFromDB(dur time.Duration) {
 
 // getCurrentOrdersKeys получаем номера заказов в очереди
 func (p *Pool) getCurrentOrdersKeys() []string {
+	logger.Log.Infow("Get current orders keys")
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 	keys := make([]string, 0, len(p.orderMap))
@@ -324,6 +355,7 @@ func (p *Pool) getCurrentOrdersKeys() []string {
 // pushDBProcessingOrdersToQueue получаем из базы данных необработанные заказы и пушим их в очередь
 func (p *Pool) pushDBProcessingOrdersToQueue() error {
 	limit := cap(p.inChanel) - len(p.inChanel)
+	logger.Log.Infow("Push db processing orders to queue", "limit", limit)
 	if limit <= 0 {
 		return nil
 	}

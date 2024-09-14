@@ -93,6 +93,6 @@ func (r *OrderRepository) GetOrdersByUserWithAccrual(userID int64) ([]models.Ord
 
 func (r *OrderRepository) GetOrdersByUserWithdraw(userID int64) ([]models.OrderWithdraw, error) {
 	var orders []models.OrderWithdraw
-	err := r.db.SelectContext(r.ctx, &orders, "SELECT t.number, abs(ta.difference) accrual, ta.created_at processed_at FROM  t_order t INNER JOIN public.t_account ta on t.number = ta.order_number AND ta.difference < 0 WHERE t.user_id = $1;", userID)
+	err := r.db.SelectContext(r.ctx, &orders, "SELECT ta.order_number number, abs(ta.difference) accrual, ta.created_at processed_at FROM  public.t_account ta WHERE ta.user_id = $1 AND ta.difference < 0 AND ta.order_number NOTNULL", userID)
 	return orders, err
 }

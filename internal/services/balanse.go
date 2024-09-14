@@ -23,7 +23,7 @@ func NewBalanceService(ctx context.Context) *BalanceService {
 }
 
 // Spend списываем средства со счёта
-func (s *BalanceService) Spend(user *models.User, sum int, order *models.Order) error {
+func (s *BalanceService) Spend(user *models.User, sum float64, order *models.Order) error {
 	userMutex, exists := UserMutexInstance.GetMutex(user.ID)
 	if !exists {
 		userMutex = UserMutexInstance.SetMutex(user.ID)
