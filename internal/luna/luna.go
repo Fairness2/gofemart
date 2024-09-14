@@ -5,13 +5,16 @@ import (
 	"strconv"
 )
 
+// ErrorIncorrectNumber ошибка, что числовая последовательность содержит недопустимые символы
 var ErrorIncorrectNumber = errors.New("incorrect number")
 
+// Check проверка строкового номера используя алгоритм Луна
+// Если число содержит нечисловые символы, оно возвращает ErrorIncorrectNumber.
 func Check(number string) (bool, error) {
-	var sum int
-	/*if length := len(number); length%2 == 1 {
+	if number == "" {
 		return false, ErrorIncorrectNumber
-	}*/
+	}
+	var sum int
 	length := len(number)
 	num := []rune(number)
 	j := 0

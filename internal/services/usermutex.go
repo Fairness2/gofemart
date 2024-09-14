@@ -2,17 +2,21 @@ package services
 
 import "sync"
 
-type UserMutex struct { // TODO удаление неиспользуемых мьютекосв
+// UserMutex управляет коллекцией мьютексов, связанных с идентификаторами пользователей,
+// обеспечивая безопасный одновременный доступ для изменения баланса.
+type UserMutex struct {
 	usersMap map[int64]*sync.Mutex
 	mutex    sync.RWMutex
 }
 
+// UserMutexInstance глобальный инстенс сервиса
 var UserMutexInstance *UserMutex
 
 func init() {
 	UserMutexInstance = NewUserMutex()
 }
 
+// NewUserMutex создание сервиса мьютексов пользователей
 func NewUserMutex() *UserMutex {
 	return &UserMutex{
 		usersMap: make(map[int64]*sync.Mutex),
@@ -20,6 +24,7 @@ func NewUserMutex() *UserMutex {
 	}
 }
 
+// GetMutex получение мьютекса пользователя
 func (um *UserMutex) GetMutex(userID int64) (*sync.Mutex, bool) {
 	um.mutex.RLock()
 	defer um.mutex.RUnlock()
@@ -27,6 +32,7 @@ func (um *UserMutex) GetMutex(userID int64) (*sync.Mutex, bool) {
 	return mutex, ok
 }
 
+// SetMutex создаём новый мьютекс пользователя
 func (um *UserMutex) SetMutex(userID int64) *sync.Mutex {
 	um.mutex.Lock()
 	defer um.mutex.Unlock()
@@ -38,6 +44,7 @@ func (um *UserMutex) SetMutex(userID int64) *sync.Mutex {
 	return mutex
 }
 
+// DeleteMutex удаляем использованный мьютекс
 func (um *UserMutex) DeleteMutex(userID int64) {
 	um.mutex.Lock()
 	defer um.mutex.Unlock()
