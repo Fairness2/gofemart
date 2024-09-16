@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	database "gofemart/internal/databse"
+	"gofemart/internal/logger"
 	"gofemart/internal/models"
 	"gofemart/internal/repositories"
 	"time"
 )
 
+// ErrorNotEnoughItems Ошибка, что не счету пользователя недостаточно ресурсов
 var ErrorNotEnoughItems = errors.New("there are not enough resources")
 
 // BalanceService безопасный сервис для списания средств
@@ -19,11 +21,13 @@ type BalanceService struct {
 
 // NewBalanceService получение нового сервиса трат
 func NewBalanceService(ctx context.Context) *BalanceService {
+	logger.Log.Debug("NewBalanceService")
 	return &BalanceService{ctx: ctx}
 }
 
 // Spend списываем средства со счёта
 func (s *BalanceService) Spend(user *models.User, sum float64, order *models.Order) error {
+	logger.Log.Debugw("Spend", "user", user.ID, "sum", sum, "order", order.Number)
 	userMutex, exists := UserMutexInstance.GetMutex(user.ID)
 	if !exists {
 		userMutex = UserMutexInstance.SetMutex(user.ID)
@@ -31,7 +35,9 @@ func (s *BalanceService) Spend(user *models.User, sum float64, order *models.Ord
 	userMutex.Lock()
 	defer func() {
 		userMutex.Unlock()
-		UserMutexInstance.DeleteMutex(user.ID)
+		if errUM := UserMutexInstance.DeleteMutex(user.ID); errUM != nil {
+			logger.Log.Info(errUM)
+		}
 	}()
 
 	rep := s.getAccountRepository()

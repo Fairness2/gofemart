@@ -109,9 +109,6 @@ create table public.t_order
 					if _, err := tx.Exec("comment on column public.t_order.status_code is 'Статус заказа';"); err != nil {
 						return err
 					}
-					if _, err := tx.Exec("comment on column public.t_order.accrual_sum is 'Кол-во бонусов';"); err != nil {
-						return err
-					}
 					if _, err := tx.Exec("create index t_order_user_id_index on public.t_order (user_id);"); err != nil {
 						return err
 					}
