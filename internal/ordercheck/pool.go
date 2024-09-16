@@ -33,16 +33,23 @@ func (e *tooManyRequestError) Unwrap() error {
 	return e.InternalError
 }
 
+type oRepo interface {
+	GetOrdersExcludeOrdersWhereStatusIn(limit int, excludedNumbers []string, olderThen time.Time, statuses ...string) ([]models.Order, error)
+	UpdateOrder(order *models.Order) error
+}
+
+type aRepo interface {
+	CreateAccount(account *models.Account) error
+}
+
 type WorkedOrder struct {
 	model  *models.Order
 	inWork bool
 }
 
 type Pool struct {
-	closeFlag bool
-	orderMap  map[string]*WorkedOrder
-	//queue     []string
-	//inWork    []string
+	closeFlag         bool
+	orderMap          map[string]*WorkedOrder
 	mutex             sync.RWMutex
 	inChanel          chan string
 	ctx               context.Context
@@ -52,6 +59,8 @@ type Pool struct {
 	client            *resty.Client
 	senderMutex       sync.RWMutex
 	olderThenDuration time.Duration
+	orderRepo         oRepo
+	accountRepo       aRepo
 }
 
 var CheckPool *Pool
@@ -63,7 +72,6 @@ func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Dur
 	client := resty.New()
 	client = client.SetBaseURL(accrualURL)
 	pool := &Pool{
-		//inWork:   make([]*models.Order, 0, workerCount),
 		mutex:             sync.RWMutex{},
 		inChanel:          inChanel,
 		ctx:               poolContext,
@@ -74,6 +82,8 @@ func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Dur
 		client:            client,
 		senderMutex:       sync.RWMutex{},
 		olderThenDuration: time.Second * 5,
+		accountRepo:       getAccountRepository(ctx),
+		orderRepo:         getOrderRepository(ctx),
 	}
 
 	// Запускаем проверку закрытия
@@ -280,26 +290,26 @@ func (p *Pool) processOrderAccrual(accrual *payloads.Accrual, order *models.Orde
 		}
 		order.StatusCode = models.StatusProcessed
 	}
-	orderRep := p.getOrderRepository()
+	orderRep := p.orderRepo
 	return orderRep.UpdateOrder(order)
 }
 
 // getAccountRepository создаём репозиторий для начислений
-func (p *Pool) getAccountRepository() *repositories.AccountRepository {
+func getAccountRepository(ctx context.Context) *repositories.AccountRepository {
 	logger.Log.Infow("Get account repository")
-	return repositories.NewAccountRepository(p.ctx, database.DBx)
+	return repositories.NewAccountRepository(ctx, database.DBx)
 }
 
 // getOrderRepository создаём репозиторий заказов
-func (p *Pool) getOrderRepository() *repositories.OrderRepository {
+func getOrderRepository(ctx context.Context) *repositories.OrderRepository {
 	logger.Log.Infow("Get order repository")
-	return repositories.NewOrderRepository(p.ctx, database.DBx)
+	return repositories.NewOrderRepository(ctx, database.DBx)
 }
 
 // createNewAccount создаём новую запись о начислении
 func (p *Pool) createNewAccount(orderNumber string, userID int64, diff float64) (*models.Account, error) {
 	logger.Log.Infow("Create new account", "orderNumber", orderNumber, "userID", userID, "diff", diff)
-	repository := p.getAccountRepository()
+	repository := p.accountRepo
 	account := models.NewAccount(sql.NullString{String: orderNumber, Valid: true}, userID, diff)
 	if err := repository.CreateAccount(account); err != nil {
 		return nil, err
@@ -360,7 +370,7 @@ func (p *Pool) pushDBProcessingOrdersToQueue() error {
 		return nil
 	}
 	keys := p.getCurrentOrdersKeys()
-	rep := p.getOrderRepository()
+	rep := p.orderRepo
 	olderThen := time.Now().Add(-p.olderThenDuration)
 	orders, err := rep.GetOrdersExcludeOrdersWhereStatusIn(limit, keys, olderThen, models.StatusProcessing, models.StatusNew)
 	if err != nil {

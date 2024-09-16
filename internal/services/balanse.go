@@ -8,40 +8,59 @@ import (
 	"gofemart/internal/logger"
 	"gofemart/internal/models"
 	"gofemart/internal/repositories"
+	"sync"
 	"time"
 )
 
 // ErrorNotEnoughItems Ошибка, что не счету пользователя недостаточно ресурсов
 var ErrorNotEnoughItems = errors.New("there are not enough resources")
 
+// BalanceRepository интерфейс для репозитория для работы с балансом пользователя
+type BalanceRepository interface {
+	GetSum(userID int64) (float64, error)
+	CreateAccount(account *models.Account) error
+}
+
+// MutexService интерфейс сервиса для работы с мьютексами пользователя
+type MutexService interface {
+	SetMutex(userID int64) *sync.Mutex
+	GetMutex(userID int64) (*sync.Mutex, bool)
+	DeleteMutex(userID int64) error
+}
+
 // BalanceService безопасный сервис для списания средств
 type BalanceService struct {
-	ctx context.Context
+	ctx        context.Context
+	repository BalanceRepository
+	userMutex  MutexService
 }
 
 // NewBalanceService получение нового сервиса трат
 func NewBalanceService(ctx context.Context) *BalanceService {
 	logger.Log.Debug("NewBalanceService")
-	return &BalanceService{ctx: ctx}
+	return &BalanceService{
+		ctx:        ctx,
+		repository: getAccountRepository(ctx),
+		userMutex:  UserMutexInstance,
+	}
 }
 
 // Spend списываем средства со счёта
 func (s *BalanceService) Spend(user *models.User, sum float64, order *models.Order) error {
 	logger.Log.Debugw("Spend", "user", user.ID, "sum", sum, "order", order.Number)
-	userMutex, exists := UserMutexInstance.GetMutex(user.ID)
+	userMutex, exists := s.userMutex.GetMutex(user.ID)
 	if !exists {
-		userMutex = UserMutexInstance.SetMutex(user.ID)
+		userMutex = s.userMutex.SetMutex(user.ID)
 	}
 	userMutex.Lock()
 	defer func() {
 		userMutex.Unlock()
-		if errUM := UserMutexInstance.DeleteMutex(user.ID); errUM != nil {
+		if errUM := s.userMutex.DeleteMutex(user.ID); errUM != nil {
 			logger.Log.Info(errUM)
 		}
 	}()
 
-	rep := s.getAccountRepository()
-	balanceSum, err := rep.GetSum(user.ID)
+	balanceSum, err := s.repository.GetSum(user.ID)
 	if err != nil {
 		return err
 	}
@@ -61,10 +80,10 @@ func (s *BalanceService) Spend(user *models.User, sum float64, order *models.Ord
 		UpdatedAt: time.Now(),
 	}
 
-	return rep.CreateAccount(&newAcc)
+	return s.repository.CreateAccount(&newAcc)
 }
 
 // getAccountRepository создаём репозиторий для начислений
-func (s *BalanceService) getAccountRepository() *repositories.AccountRepository {
-	return repositories.NewAccountRepository(s.ctx, database.DBx)
+func getAccountRepository(ctx context.Context) *repositories.AccountRepository {
+	return repositories.NewAccountRepository(ctx, database.DBx)
 }

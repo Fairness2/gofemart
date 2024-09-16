@@ -4,18 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/jmoiron/sqlx"
 	"gofemart/internal/models"
 )
 
+// AccountRepository предоставляет доступ к данным аккаунтов в базе данных.
+// Использует контекст для управления запросами и пул соединений с БД.
 type AccountRepository struct {
 	// db пул соединений с базой данных, которыми может пользоваться хранилище
-	db *sqlx.DB
+	db SQLExecutor
 	// storeCtx контекст, который отвечает за запросы
 	ctx context.Context
 }
 
-func NewAccountRepository(ctx context.Context, db *sqlx.DB) *AccountRepository { // TODO заменить на интерфейс
+// NewAccountRepository creates a new instance of AccountRepository with the provided context and SQLExecutor.
+func NewAccountRepository(ctx context.Context, db SQLExecutor) *AccountRepository { // TODO заменить на интерфейс
 	return &AccountRepository{
 		ctx: ctx,
 		db:  db,
@@ -35,7 +37,7 @@ func (r *AccountRepository) CreateAccount(account *models.Account) error {
 // GetSum Получаем текущий баланс пользователя
 func (r *AccountRepository) GetSum(userID int64) (float64, error) {
 	var sum float64
-	row := r.db.QueryRowContext(r.ctx, "SELECT SUM(difference) FROM t_account WHERE user_id = $1", userID)
+	row := r.db.QueryRowContext(r.ctx, "SELECT COALESCE(SUM(difference), 0) FROM t_account WHERE user_id = $1", userID)
 	if row.Err() != nil {
 		return 0, row.Err()
 	}
@@ -46,6 +48,7 @@ func (r *AccountRepository) GetSum(userID int64) (float64, error) {
 	return sum, nil
 }
 
+// GetBalance рассчитывает и возвращает текущий и снятый баланс для данного пользователя.
 func (r *AccountRepository) GetBalance(userID int64) (*models.Balance, error) { // TODO транзакция для того, чтобы зафиксировать состояние таблицы
 	balance := &models.Balance{}
 	row := r.db.QueryRowxContext(r.ctx, "SELECT COALESCE(sum(difference), 0) current, COALESCE(sum(CASE WHEN difference < 0 THEN abs(difference) ELSE 0 END), 0) withdrawn FROM t_account WHERE user_id = $1", userID)
@@ -58,6 +61,7 @@ func (r *AccountRepository) GetBalance(userID int64) (*models.Balance, error) { 
 	return balance, nil
 }
 
+// GetWithdrawByOrder извлекает запись о снятии средств по номеру заказа.
 func (r *AccountRepository) GetWithdrawByOrder(orderNumber string) (*models.Account, bool, error) {
 	account := &models.Account{}
 	err := r.db.QueryRowxContext(r.ctx, "SELECT * FROM t_account WHERE order_number = $1 AND difference < 0", orderNumber).

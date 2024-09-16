@@ -5,11 +5,7 @@ type Register struct {
 	Password string `json:"password" valid:"required,type(string),minstringlength(6)"`
 }
 
-type ErrorResponseBody struct {
-	Status  int    `json:"status"` // Успешный или не успешный результат
-	Message string `json:"message,omitempty"`
-}
-
+// Authorization ответ с токеном авторизации
 type Authorization struct {
 	Token string `json:"token"`
 }
