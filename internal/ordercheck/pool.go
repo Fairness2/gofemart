@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/go-resty/resty/v2"
 	"gofemart/internal/accrual"
 	database "gofemart/internal/databse"
 	"gofemart/internal/logger"
@@ -65,11 +64,8 @@ func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Dur
 	logger.Log.Infow("New pool", "queueSize", queueSize, "workerCount", workerCount, "pause", pause, "accrualURL", accrualURL)
 	inChanel := make(chan string, queueSize)
 	poolContext, cancel := context.WithCancel(ctx)
-
 	proxy := accrual.NewProxy(pause, accrualURL)
 
-	client := resty.New()
-	client = client.SetBaseURL(accrualURL)
 	pool := &Pool{
 		mutex:             sync.RWMutex{},
 		inChanel:          inChanel,
@@ -92,13 +88,11 @@ func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Dur
 func initPool(workerCount int, pool *Pool) {
 	// Запускаем проверку закрытия
 	go pool.finishWork()
-
 	// Запускаем воркеры
 	for i := 0; i < workerCount; i++ {
 		pool.wg.Add(1)
 		go pool.pushFromQueue()
 	}
-
 	// Запускаем проверку базы данных
 	pool.wg.Add(1)
 	go pool.pushFromDB(5 * time.Second)
