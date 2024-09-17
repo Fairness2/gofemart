@@ -3,50 +3,46 @@ package ordercheck
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"github.com/go-resty/resty/v2"
+	"gofemart/internal/accrual"
 	database "gofemart/internal/databse"
 	"gofemart/internal/logger"
 	"gofemart/internal/models"
 	"gofemart/internal/payloads"
 	"gofemart/internal/repositories"
-	"net/http"
 	"sync"
 	"time"
 )
 
+// ErrorPoolClosed Ошибка, что пул обработки уже закрыт
 var ErrorPoolClosed = errors.New("pool closed")
-var ErrorOrderNotRegistered = errors.New("order not registered in accrual service")
-var ErrorInternalAccrual = errors.New("accrual service internal error")
-var ErrorTooManyRequests = errors.New("too many requests")
 
-type tooManyRequestError struct {
-	InternalError error
-	pauseDuration time.Duration
-}
-
-func (e *tooManyRequestError) Error() string {
-	return e.InternalError.Error()
-}
-func (e *tooManyRequestError) Unwrap() error {
-	return e.InternalError
-}
-
+// oRepo определяет методы взаимодействия с заказами в репозитории.
 type oRepo interface {
 	GetOrdersExcludeOrdersWhereStatusIn(limit int, excludedNumbers []string, olderThen time.Time, statuses ...string) ([]models.Order, error)
 	UpdateOrder(order *models.Order) error
 }
 
+// aRepo определяет интерфейс для взаимодействия с начислениями в репозитории.
 type aRepo interface {
 	CreateAccount(account *models.Account) error
 }
 
+// Accrual предоставляет методы для проверки начислений и управления паузами.
+type Accrual interface {
+	Accrual(order *models.Order) (*payloads.Accrual, error)
+	Pause(duration time.Duration)
+}
+
+// WorkedOrder представляет собой обрабатываемый заказ.
 type WorkedOrder struct {
 	model  *models.Order
 	inWork bool
 }
 
+// Pool управляет обработкой заказов, включая организацию очередей,
+// параллельную обработку и взаимодействие с внешними системами.
 type Pool struct {
 	closeFlag         bool
 	orderMap          map[string]*WorkedOrder
@@ -55,20 +51,23 @@ type Pool struct {
 	ctx               context.Context
 	wg                sync.WaitGroup
 	cancel            context.CancelFunc
-	pauseDuration     time.Duration
-	client            *resty.Client
-	senderMutex       sync.RWMutex
 	olderThenDuration time.Duration
 	orderRepo         oRepo
 	accountRepo       aRepo
+	accrualProxy      Accrual
 }
 
+// CheckPool глобальный инстенс пула обработки заказов.
 var CheckPool *Pool
 
+// NewPool инициализирует и возвращает новый экземпляр Pool с указанным контекстом, размером очереди, количеством рабочих процессов, длительностью паузы и URL-адресом накопления.
 func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Duration, accrualURL string) *Pool {
 	logger.Log.Infow("New pool", "queueSize", queueSize, "workerCount", workerCount, "pause", pause, "accrualURL", accrualURL)
 	inChanel := make(chan string, queueSize)
 	poolContext, cancel := context.WithCancel(ctx)
+
+	proxy := accrual.NewProxy(pause, accrualURL)
+
 	client := resty.New()
 	client = client.SetBaseURL(accrualURL)
 	pool := &Pool{
@@ -78,14 +77,19 @@ func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Dur
 		cancel:            cancel,
 		orderMap:          make(map[string]*WorkedOrder),
 		wg:                sync.WaitGroup{},
-		pauseDuration:     pause,
-		client:            client,
-		senderMutex:       sync.RWMutex{},
 		olderThenDuration: time.Second * 5,
 		accountRepo:       getAccountRepository(ctx),
 		orderRepo:         getOrderRepository(ctx),
+		accrualProxy:      proxy,
 	}
+	initPool(workerCount, pool)
 
+	return pool
+}
+
+// initPool инициализирует и запускает пул рабочих процессов,
+// запускает рабочие процессы и планирует проверки базы данных.
+func initPool(workerCount int, pool *Pool) {
 	// Запускаем проверку закрытия
 	go pool.finishWork()
 
@@ -98,8 +102,6 @@ func NewPool(ctx context.Context, queueSize int, workerCount int, pause time.Dur
 	// Запускаем проверку базы данных
 	pool.wg.Add(1)
 	go pool.pushFromDB(5 * time.Second)
-
-	return pool
 }
 
 // Close функция закрытия пула, закрываем локальный контекст, ждём завершения всех воркеров, закрываем канал очереди
@@ -114,7 +116,8 @@ func (p *Pool) Close() {
 	close(p.inChanel)
 }
 
-// Push adds an Order to the Pool's queue if the queue is not full and the Pool is not closed, returning success status and error.
+// Push добавляет заказ в очередь пула,
+// если очередь не заполнена и пул не закрыт, возвращая статус успешного выполнения и ошибку.
 func (p *Pool) Push(order *models.Order) (bool, error) { // TODO ограниченная очередь
 	logger.Log.Infow("Push order to pool", "order", order.Number)
 	if p.closeFlag {
@@ -185,12 +188,12 @@ func (p *Pool) processOder(number string) {
 		return
 	}
 	defer p.removeFromWork(number)
-	accrualResponse, err := p.accrual(order.model)
+	accrualResponse, err := p.accrualProxy.Accrual(order.model)
 	if err != nil {
 		logger.Log.Error(err)
-		var tmrErr tooManyRequestError
+		var tmrErr accrual.TooManyRequestError
 		if ok := errors.Is(err, &tmrErr); ok {
-			p.pause(tmrErr.pauseDuration)
+			p.accrualProxy.Pause(tmrErr.PauseDuration)
 		}
 		return
 	}
@@ -215,64 +218,6 @@ func (p *Pool) deleteFromMap(number string) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	delete(p.orderMap, number)
-}
-
-// pause Если мы попали в блок от системы, делаем паузу между запросами
-func (p *Pool) pause(duration time.Duration) {
-	logger.Log.Infow("Pause", "duration", duration)
-	p.senderMutex.Lock()
-	defer p.senderMutex.RUnlock()
-	<-time.After(duration)
-}
-
-// accrual запрашиваем статус заказа в системе начислений
-func (p *Pool) accrual(order *models.Order) (*payloads.Accrual, error) {
-	logger.Log.Infow("Accrual", "order", order.Number)
-	p.senderMutex.RLock()
-	defer p.senderMutex.RUnlock()
-	url := "/api/orders/" + order.Number
-	request := p.client.R()
-	request.SetHeader("Content-Type", "application/json")
-	response, err := request.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	switch response.StatusCode() {
-	case http.StatusNoContent:
-		logger.Log.Infow("Order not registered", "order", order.Number, "status", http.StatusNoContent)
-		return nil, ErrorOrderNotRegistered
-	case http.StatusInternalServerError:
-		logger.Log.Infow("Accrual check failed", "order", order.Number, "status", http.StatusInternalServerError)
-		return nil, ErrorInternalAccrual
-	case http.StatusTooManyRequests:
-		logger.Log.Infow("Too many requests", "order", order.Number, "status", 429)
-		pauseDuration := p.pauseDuration
-		if pauseHeader := response.Header().Get("Retry-After"); pauseHeader != "" {
-			pauseHeaderValue, err := time.ParseDuration(pauseHeader)
-			if err == nil {
-				pauseDuration = pauseHeaderValue
-			} else {
-				logger.Log.Error(err)
-			}
-		}
-		return nil, &tooManyRequestError{InternalError: ErrorTooManyRequests, pauseDuration: pauseDuration}
-	case 200:
-		logger.Log.Infow("Order registered", "order", order.Number, "status", 200)
-		return p.processAccrualResponse(response)
-	default:
-		return nil, errors.New("unknown accrual error")
-	}
-}
-
-// processAccrualResponse processes the response from the accrual service and parses it into an Accrual structure.
-func (p *Pool) processAccrualResponse(res *resty.Response) (*payloads.Accrual, error) {
-	// Парсим тело в структуру запроса
-	var body payloads.Accrual
-	err := json.Unmarshal(res.Body(), &body)
-	if err != nil {
-		return nil, err
-	}
-	return &body, nil
 }
 
 // processOrderAccrual обрабатываем ответ системы начислений, обновляем заказ и создаём запись в счёте пользователя
