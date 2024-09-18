@@ -3,13 +3,13 @@ package token
 import (
 	"context"
 	config "gofemart/internal/configuration"
-	database "gofemart/internal/databse"
 	"gofemart/internal/helpers"
 	"gofemart/internal/logger"
 	"gofemart/internal/repositories"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Key тип ключей в контексте
@@ -18,8 +18,22 @@ type Key string
 // UserKey ключ авторизованного пользователя в контексте
 var UserKey Key = "user"
 
-// AuthMiddleware авторизовываем пользователя по токену и записываем его в контекст
-func AuthMiddleware(next http.Handler) http.Handler {
+type Authenticator struct {
+	dbPool          repositories.SQLExecutor
+	jwtKeys         *config.JWTKeys
+	tokenExpiration time.Duration
+}
+
+func NewAuthenticator(dbPool repositories.SQLExecutor, jwtKeys *config.JWTKeys, tokenExpiration time.Duration) *Authenticator {
+	return &Authenticator{
+		dbPool:          dbPool,
+		jwtKeys:         jwtKeys,
+		tokenExpiration: tokenExpiration,
+	}
+}
+
+// Middleware авторизовываем пользователя по токену и записываем его в контекст
+func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tknString := r.Header.Get("Authorization")
 		if tknString == "" {
@@ -31,7 +45,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		tknString = strings.TrimPrefix(tknString, "Bearer ")
-		generator := NewJWTGenerator(config.Params.JWTKeys.Private, config.Params.JWTKeys.Public, config.Params.TokenExpiration)
+		generator := NewJWTGenerator(a.jwtKeys.Private, a.jwtKeys.Public, a.tokenExpiration)
 		tkn, err := generator.Parse(tknString)
 		if err != nil {
 			logger.Log.Info(err)
@@ -51,7 +65,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		userRepository := repositories.NewUserRepository(r.Context(), database.DBx)
+		userRepository := repositories.NewUserRepository(r.Context(), a.dbPool)
 		user, exists, err := userRepository.GetUserByID(userID)
 		if err != nil {
 			helpers.SetInternalError(err, w)

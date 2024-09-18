@@ -2,7 +2,6 @@ package orders
 
 import (
 	"encoding/json"
-	database "gofemart/internal/databse"
 	"gofemart/internal/helpers"
 	"gofemart/internal/luna"
 	"gofemart/internal/models"
@@ -14,7 +13,17 @@ import (
 	"strings"
 )
 
-func RegisterOrderHandler(response http.ResponseWriter, request *http.Request) {
+type Handlers struct {
+	dbPool repositories.SQLExecutor
+}
+
+func NewHandlers(dbPool repositories.SQLExecutor) *Handlers {
+	return &Handlers{
+		dbPool: dbPool,
+	}
+}
+
+func (h *Handlers) RegisterOrderHandler(response http.ResponseWriter, request *http.Request) {
 	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		helpers.SetInternalError(err, response)
@@ -40,9 +49,9 @@ func RegisterOrderHandler(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	rep := repositories.NewOrderRepository(request.Context(), database.DBx)
+	rep := repositories.NewOrderRepository(request.Context(), h.dbPool)
 
-	order, ok, err := getOrderFromBd(rep, strBody)
+	order, ok, err := h.getOrderFromBd(rep, strBody)
 	if err != nil {
 		helpers.SetInternalError(err, response)
 		return
@@ -60,30 +69,30 @@ func RegisterOrderHandler(response http.ResponseWriter, request *http.Request) {
 
 	// Создаём новый ордер и отправляем его в проверочную
 	order = models.NewOrder(strBody, user.ID)
-	if err := saveOrder(rep, order); err != nil {
+	if err := h.saveOrder(rep, order); err != nil {
 		helpers.SetInternalError(err, response)
 		return
 	}
-	if _, err := sendToQueue(order); err != nil {
+	if _, err := h.sendToQueue(order); err != nil {
 		helpers.SetInternalError(err, response)
 		return
 	}
 	helpers.ProcessErrorWithStatus("new order number accepted for processing", http.StatusAccepted, response)
 }
 
-func getOrderFromBd(rep *repositories.OrderRepository, number string) (*models.Order, bool, error) {
+func (h *Handlers) getOrderFromBd(rep *repositories.OrderRepository, number string) (*models.Order, bool, error) {
 	return rep.GetOrderByNumber(number)
 }
 
-func saveOrder(rep *repositories.OrderRepository, order *models.Order) error {
+func (h *Handlers) saveOrder(rep *repositories.OrderRepository, order *models.Order) error {
 	return rep.CreateOrder(order)
 }
 
-func sendToQueue(order *models.Order) (bool, error) {
+func (h *Handlers) sendToQueue(order *models.Order) (bool, error) {
 	return ordercheck.CheckPool.Push(order)
 }
 
-func GetOrdersHandler(response http.ResponseWriter, request *http.Request) {
+func (h *Handlers) GetOrdersHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
@@ -91,7 +100,7 @@ func GetOrdersHandler(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	rep := repositories.NewOrderRepository(request.Context(), database.DBx)
+	rep := repositories.NewOrderRepository(request.Context(), h.dbPool)
 	orders, err := rep.GetOrdersByUserWithAccrual(user.ID)
 	if err != nil {
 		helpers.SetInternalError(err, response)
@@ -113,7 +122,7 @@ func GetOrdersHandler(response http.ResponseWriter, request *http.Request) {
 	}
 }
 
-func GetOrdersWwithdrawalsHandler(response http.ResponseWriter, request *http.Request) {
+func (h *Handlers) GetOrdersWwithdrawalsHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
@@ -121,7 +130,7 @@ func GetOrdersWwithdrawalsHandler(response http.ResponseWriter, request *http.Re
 		return
 	}
 
-	rep := repositories.NewOrderRepository(request.Context(), database.DBx)
+	rep := repositories.NewOrderRepository(request.Context(), h.dbPool)
 	orders, err := rep.GetOrdersByUserWithdraw(user.ID)
 	if err != nil {
 		helpers.SetInternalError(err, response)

@@ -4,9 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
+	"github.com/jmoiron/sqlx"
 	"gofemart/internal/models"
-	"strings"
 	"time"
 )
 
@@ -43,32 +42,30 @@ func (r *OrderRepository) UpdateOrder(order *models.Order) error {
 func (r *OrderRepository) GetOrdersExcludeOrdersWhereStatusIn(limit int, excludedNumbers []string, olderThen time.Time, statuses ...string) ([]models.Order, error) {
 	wheres := make([]interface{}, 0, len(excludedNumbers)+len(statuses)+3)
 	sqlStr := "SELECT * FROM t_order WHERE "
-	i := 1
 	// Добавляем статусы к условию выборки
 	if len(statuses) > 0 {
-		//iStr := strconv.Itoa(i)
-		var placeholders []string
-		for _, v := range statuses {
-			placeholders = append(placeholders, fmt.Sprintf("$%d", i))
-			wheres = append(wheres, v)
-			i++
+
+		stSql, vars, err := sqlx.In("status_code IN (?)", statuses)
+		if err != nil {
+			return []models.Order{}, err
 		}
-		sqlStr += fmt.Sprintf("status_code IN (%s) AND ", strings.Join(placeholders, ", "))
+		sqlStr += stSql + " AND "
+		wheres = append(wheres, vars...)
 	}
 
 	// добавляем исключающие номера, которые уже находятся в очереди
 	if len(excludedNumbers) > 0 {
-		var placeholders []string
-		for _, v := range excludedNumbers {
-			placeholders = append(placeholders, fmt.Sprintf("$%d", i))
-			wheres = append(wheres, v)
-			i++
+		stSql, vars, err := sqlx.In("number NOT IN (?)", excludedNumbers)
+		if err != nil {
+			return []models.Order{}, err
 		}
-		sqlStr += fmt.Sprintf("number NOT IN (%s) AND ", strings.Join(placeholders, ", "))
+		sqlStr += stSql + " AND "
+		wheres = append(wheres, vars...)
 	}
 	// добавляем условия по дате проверки и лимит записей в одной выборке
-	sqlStr += fmt.Sprintf("((last_checked_at NOTNULL AND last_checked_at <= $%d) OR (last_checked_at IS NULL AND created_at <= $%d)) LIMIT $%d", i, i+1, i+2)
+	sqlStr += "((last_checked_at NOTNULL AND last_checked_at <= ?) OR (last_checked_at IS NULL AND created_at <= ?)) LIMIT ?"
 	wheres = append(wheres, olderThen, olderThen, limit)
+	sqlStr = r.db.Rebind(sqlStr)
 
 	var orders []models.Order
 	err := r.db.SelectContext(r.ctx, &orders, sqlStr, wheres...)

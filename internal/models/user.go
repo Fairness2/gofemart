@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	config "gofemart/internal/configuration"
 )
 
 type User struct {
@@ -16,14 +15,14 @@ type User struct {
 }
 
 // GeneratePasswordHash создаём хэш пароля пользователя
-func (u *User) GeneratePasswordHash() error {
+func (u *User) GeneratePasswordHash(hashKey string) error {
 	if u.Password == "" {
 		return errors.New("password key is empty")
 	}
-	if config.Params.HashKey == "" {
+	if hashKey == "" {
 		return errors.New("hash key is empty")
 	}
-	harsher := hmac.New(sha256.New, []byte(config.Params.HashKey))
+	harsher := hmac.New(sha256.New, []byte(hashKey))
 	harsher.Write([]byte(u.Password))
 	u.PasswordHash = hex.EncodeToString(harsher.Sum(nil))
 

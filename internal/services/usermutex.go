@@ -16,15 +16,15 @@ type UserMutex struct {
 	mutex    sync.RWMutex
 }
 
-// UserMutexInstance глобальный инстенс сервиса
-var UserMutexInstance *UserMutex
-
-func init() {
-	UserMutexInstance = NewUserMutex()
+func GetUserMutexInstance() *UserMutex {
+	return userMutexInstance
 }
 
-// NewUserMutex создание сервиса мьютексов пользователей
-func NewUserMutex() *UserMutex {
+// userMutexInstance глобальный инстенс сервиса
+var userMutexInstance *UserMutex = newUserMutex()
+
+// newUserMutex создание сервиса мьютексов пользователей
+func newUserMutex() *UserMutex {
 	return &UserMutex{
 		usersMap: make(map[int64]*sync.Mutex),
 		mutex:    sync.RWMutex{},

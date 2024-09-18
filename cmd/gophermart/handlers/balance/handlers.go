@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/asaskevich/govalidator"
-	database "gofemart/internal/databse"
 	"gofemart/internal/gofemarterrors"
 	"gofemart/internal/helpers"
 	"gofemart/internal/luna"
@@ -18,9 +17,19 @@ import (
 	"net/http"
 )
 
-func WithdrawHandler(response http.ResponseWriter, request *http.Request) {
+type Handlers struct {
+	dbPool repositories.SQLExecutor
+}
+
+func NewHandlers(dbPool repositories.SQLExecutor) *Handlers {
+	return &Handlers{
+		dbPool: dbPool,
+	}
+}
+
+func (b *Handlers) WithdrawHandler(response http.ResponseWriter, request *http.Request) {
 	// Читаем тело запроса
-	body, err := getBody(request)
+	body, err := b.getBody(request)
 	if err != nil {
 		helpers.ProcessRequestErrorWithBody(err, response)
 		return
@@ -37,7 +46,7 @@ func WithdrawHandler(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	rep := repositories.NewOrderRepository(request.Context(), database.DBx)
+	rep := repositories.NewOrderRepository(request.Context(), b.dbPool)
 	_, exists, err := rep.GetOrderByNumber(body.OrderNumber)
 	if err != nil {
 		helpers.SetInternalError(err, response)
@@ -48,7 +57,7 @@ func WithdrawHandler(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	accrualRep := repositories.NewAccountRepository(request.Context(), database.DBx)
+	accrualRep := repositories.NewAccountRepository(request.Context(), b.dbPool)
 	_, exists, err = accrualRep.GetWithdrawByOrder(body.OrderNumber)
 	if err != nil {
 		helpers.SetInternalError(err, response)
@@ -66,7 +75,7 @@ func WithdrawHandler(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	service := getBalanceService(request.Context())
+	service := b.getBalanceService(request.Context())
 	order := &models.Order{Number: body.OrderNumber}
 	if err := service.Spend(user, body.Sum, order); err != nil {
 		if errors.Is(err, services.ErrorNotEnoughItems) {
@@ -81,7 +90,7 @@ func WithdrawHandler(response http.ResponseWriter, request *http.Request) {
 }
 
 // getBody получаем тело для регистрации
-func getBody(request *http.Request) (*payloads.Withdraw, error) {
+func (b *Handlers) getBody(request *http.Request) (*payloads.Withdraw, error) {
 	// Читаем тело запроса
 	rawBody, err := io.ReadAll(request.Body)
 	if err != nil {
@@ -106,18 +115,18 @@ func getBody(request *http.Request) (*payloads.Withdraw, error) {
 	return &body, nil
 }
 
-func getBalanceService(ctx context.Context) *services.BalanceService {
-	return services.NewBalanceService(ctx)
+func (b *Handlers) getBalanceService(ctx context.Context) *services.BalanceService {
+	return services.NewBalanceService(ctx, b.dbPool)
 }
 
-func GetBalanceHandler(response http.ResponseWriter, request *http.Request) {
+func (b *Handlers) GetBalanceHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
 		helpers.ProcessErrorWithStatus("User not found", http.StatusUnauthorized, response)
 		return
 	}
-	rep := repositories.NewAccountRepository(request.Context(), database.DBx)
+	rep := repositories.NewAccountRepository(request.Context(), b.dbPool)
 	bal, err := rep.GetBalance(user.ID)
 	if err != nil {
 		helpers.SetInternalError(err, response)

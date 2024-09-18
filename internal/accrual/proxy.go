@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+const getOrderURL = "/api/orders/"
+
 // ErrorOrderNotRegistered указывает на то, что заказ не зарегистрирован в сервисе начисления.
 var ErrorOrderNotRegistered = errors.New("order not registered in accrual service")
 
@@ -66,7 +68,7 @@ func (p *Proxy) Accrual(order *models.Order) (*payloads.Accrual, error) {
 	logger.Log.Infow("Accrual", "order", order.Number)
 	p.senderMutex.RLock()
 	defer p.senderMutex.RUnlock()
-	url := "/api/orders/" + order.Number
+	url := getOrderURL + order.Number
 	request := p.client.R()
 	request.SetHeader("Content-Type", "application/json")
 	response, err := request.Get(url)

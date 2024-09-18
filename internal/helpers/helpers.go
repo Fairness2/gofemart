@@ -55,10 +55,8 @@ func ProcessRequestErrorWithBody(err error, response http.ResponseWriter) {
 	}
 	if responseErr != nil {
 		SetInternalError(err, response)
-	} else {
-		if rErr := SetHTTPResponse(response, httpStatus, errBody); rErr != nil {
-			logger.Log.Error(rErr)
-		}
+	} else if rErr := SetHTTPResponse(response, httpStatus, errBody); rErr != nil {
+		logger.Log.Error(rErr)
 	}
 }
 

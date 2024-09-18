@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	database "gofemart/internal/databse"
 	"gofemart/internal/logger"
 	"gofemart/internal/models"
 	"gofemart/internal/repositories"
@@ -36,12 +35,12 @@ type BalanceService struct {
 }
 
 // NewBalanceService получение нового сервиса трат
-func NewBalanceService(ctx context.Context) *BalanceService {
+func NewBalanceService(ctx context.Context, dbPool repositories.SQLExecutor) *BalanceService {
 	logger.Log.Debug("NewBalanceService")
 	return &BalanceService{
 		ctx:        ctx,
-		repository: getAccountRepository(ctx),
-		userMutex:  UserMutexInstance,
+		repository: getAccountRepository(ctx, dbPool),
+		userMutex:  GetUserMutexInstance(),
 	}
 }
 
@@ -84,6 +83,6 @@ func (s *BalanceService) Spend(user *models.User, sum float64, order *models.Ord
 }
 
 // getAccountRepository создаём репозиторий для начислений
-func getAccountRepository(ctx context.Context) *repositories.AccountRepository {
-	return repositories.NewAccountRepository(ctx, database.DBx)
+func getAccountRepository(ctx context.Context, dbPool repositories.SQLExecutor) *repositories.AccountRepository {
+	return repositories.NewAccountRepository(ctx, dbPool)
 }

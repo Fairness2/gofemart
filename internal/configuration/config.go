@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/rsa"
+	_ "embed"
 	"time"
 )
 
@@ -22,31 +23,17 @@ const (
 	DefaultPublicKeyPath = ""
 	// DefaultTokenExpiration Время жизни токена авторизации по умолчанию
 	DefaultTokenExpiration = 12 * time.Hour
-
-	// DefaultPrivateKey Текстовое представление приватного ключа для JWT по умолчанию
-	DefaultPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
-MIICWwIBAAKBgF8sjeK3PDamGn0icENKSjwWpuWjmPrKEoVWXIO7os5iM1CZOn7h
-qC4OgRKArfNC2BVa2zvVcrzRxRzFobyM6fblMbRzgE//5ct6YtpkWUgWEOZfXZ/X
-FY5AUlngBKZtU2MS/CUX+PFXICUIVTDoCL6ngwNqTQj/dCin6E75Q1c/AgMBAAEC
-gYAnYTsQHPs4LYB2WIKVBS80L7c8+3U4B9aj/zjmdQQHW1CaP9yZVWuOKwgzDLVt
-GzJnm6Fs34PLJwzlO80RREkmEynnTYNVJejCLwuyT1oEGV6rFsql2HcIZ073NCxN
-WakwL6Ay7QHH5S+hJDHCuxAx7kKoqiIXRcvbcwpRAnE5kQJBAKISE5uw1ejUocnE
-ad7M2PVTz36ZS9d/3glpRQiQ2exeFRtcsq1J6O7G5OK62UMv3tcHyjf2suY0fPAA
-jlPt/jcCQQCWVTylcs1Q319VRecJxSiCPjj97AA2VO1gcgzCWQ7mTp+N8QIegrD/
-ZvvHqSLt79CexWrnOI6SvPuMf+8fwas5AkAlw76L7cW6bimQ4VKmFueLKs9TuZbB
-jUsIuF3cpBwThsy2RoBf/rPnR7M33cAYdsQfKPKG3dZL6/kc15RSnEc7AkAgXTdS
-MxXqjDw84nCr1Ms0xuqEF/Ovvrbf5Y3DpWKkyFZnO3SGVwJ96ZDY2hvP96oFFGFA
-aBehlZfeFojHYG1ZAkEAnfwWAoPmvHxDaakOMsZg9PVVHIMhJ3Uck7lU5HKofHhq
-rW4FGtaAhyoIZ2DQgctfe+PMcflOzkzkg9Cpqax7Cg==
------END RSA PRIVATE KEY-----`
-	// DefaultPublicKey Текстовое представление публичного ключа для JWT по умолчанию
-	DefaultPublicKey = `-----BEGIN PUBLIC KEY-----
-MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgF8sjeK3PDamGn0icENKSjwWpuWj
-mPrKEoVWXIO7os5iM1CZOn7hqC4OgRKArfNC2BVa2zvVcrzRxRzFobyM6fblMbRz
-gE//5ct6YtpkWUgWEOZfXZ/XFY5AUlngBKZtU2MS/CUX+PFXICUIVTDoCL6ngwNq
-TQj/dCin6E75Q1c/AgMBAAE=
------END PUBLIC KEY-----`
 )
+
+// DefaultPrivateKey Текстовое представление приватного ключа для JWT по умолчанию
+//
+//go:embed keys/private.pem
+var DefaultPrivateKey string
+
+// DefaultPublicKey Текстовое представление публичного ключа для JWT по умолчанию
+//
+//go:embed keys/public.pem
+var DefaultPublicKey string
 
 type JWTKeys struct {
 	Public  *rsa.PublicKey
@@ -68,11 +55,8 @@ type CliConfig struct {
 	TokenExpiration      time.Duration `env:"TOKEN_EXPIRATION"`       // Время жизни токена авторизации
 }
 
-// Params конфигурация приложения
-var Params *CliConfig
-
-// InitializeDefaultConfig инициализация конфигурации приложения
-func InitializeDefaultConfig() *CliConfig {
+// NewDefaultConfig инициализация конфигурации приложения
+func NewDefaultConfig() *CliConfig {
 	return &CliConfig{
 		Address:              DefaultServerURL,
 		LogLevel:             DefaultLogLevel,

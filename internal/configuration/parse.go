@@ -9,10 +9,10 @@ import (
 	"os"
 )
 
-// Parse инициализирует новую консольную конфигурацию, обрабатывает аргументы командной строки
-func Parse() (*CliConfig, error) {
+// NewConfig инициализирует новую консольную конфигурацию, обрабатывает аргументы командной строки
+func NewConfig() (*CliConfig, error) {
 	// Регистрируем новое хранилище
-	cnf := InitializeDefaultConfig()
+	cnf := NewDefaultConfig()
 	// Заполняем конфигурацию из параметров командной строки
 	if err := parseFromCli(cnf); err != nil {
 		return nil, err

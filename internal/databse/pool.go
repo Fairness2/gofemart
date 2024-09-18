@@ -1,18 +1,22 @@
 package database
 
 import (
-	"database/sql"
+	"errors"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
+	"gofemart/internal/databse/migrations"
+	"gofemart/internal/logger"
 )
 
-// DB глобальный пул подключений к базе данных для приложения
-var DB *sql.DB
-var DBx *sqlx.DB
+var ErrorEmptyDSN = errors.New("empty dsn")
 
-// NewPgDB создаёт новое подключение к базе данных
-func NewPgDB(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("pgx", dsn)
+// DBPool глобальный пул подключений к базе данных для приложения c функцией закрытия
+type DBPool struct {
+	DBx *sqlx.DB
+}
+
+func newPgDBx(dsn string) (*sqlx.DB, error) {
+	db, err := sqlx.Open("pgx", dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -27,6 +31,40 @@ func NewPgDB(dsn string) (*sql.DB, error) {
 	return db, nil
 }
 
-func NewPgDBx(db *sql.DB) *sqlx.DB {
-	return sqlx.NewDb(db, "pgx")
+// NewDB инициализация подключения к бд
+func NewDB(dsn string) (*DBPool, error) {
+	if dsn == "" {
+		return nil, ErrorEmptyDSN
+	}
+	// Создание пула подключений к базе данных для приложения
+	db, err := newPgDBx(dsn)
+	if err != nil {
+		return nil, err
+	}
+	pool := &DBPool{
+		DBx: db,
+	}
+
+	return pool, nil
+}
+
+func (p *DBPool) Migrate() error {
+	logger.Log.Info("Migrate migrations")
+	// Применим миграции
+	migrator, err := migrations.New()
+	if err != nil {
+		return err
+	}
+	return migrator.Migrate(p.DBx.DB)
+}
+
+// Close закрытие базы данных
+func (p *DBPool) Close() {
+	logger.Log.Info("Closing database connection for defer")
+	if p.DBx != nil {
+		err := p.DBx.Close()
+		if err != nil {
+			logger.Log.Error(err)
+		}
+	}
 }

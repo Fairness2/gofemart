@@ -25,7 +25,7 @@ func TestUserMutex_GetMutex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			um := NewUserMutex()
+			um := newUserMutex()
 			tt.setup(um)
 			_, ok := um.GetMutex(1)
 			if ok != tt.expectedOK {
@@ -54,7 +54,7 @@ func TestUserMutex_SetMutex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			um := NewUserMutex()
+			um := newUserMutex()
 			tt.setup(um)
 			got := um.SetMutex(1)
 			if _, ok := um.GetMutex(1); !ok || got == nil {
@@ -93,7 +93,7 @@ func TestUserMutex_DeleteMutex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			um := NewUserMutex()
+			um := newUserMutex()
 			tt.setup(um)
 			err := um.DeleteMutex(1)
 			if tt.expectedOK {

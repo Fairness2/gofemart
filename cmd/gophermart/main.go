@@ -6,9 +6,10 @@ import (
 	"go.uber.org/zap"
 	config "gofemart/internal/configuration"
 	database "gofemart/internal/databse"
-	"gofemart/internal/databse/migrations"
 	"gofemart/internal/logger"
 	"gofemart/internal/ordercheck"
+	"gofemart/internal/router"
+	"gofemart/internal/server"
 	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
@@ -21,27 +22,26 @@ import (
 func main() {
 	log.Println("Start program")
 	// Устанавливаем настройки
-	cnf, err := config.Parse()
+	cnf, err := config.NewConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
-	config.Params = cnf
 
-	_, err = initLogger()
+	_, err = initLogger(cnf.LogLevel)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Показываем конфигурацию сервера
 	logger.Log.Infow("Running server with configuration",
-		"address", config.Params.Address,
-		"logLevel", config.Params.LogLevel,
-		"databaseDSN", config.Params.DatabaseDSN,
-		"accrualSystemAddress", config.Params.AccrualSystemAddress,
+		"address", cnf.Address,
+		"logLevel", cnf.LogLevel,
+		"databaseDSN", cnf.DatabaseDSN,
+		"accrualSystemAddress", cnf.AccrualSystemAddress,
 	)
 
 	// стартуем приложение
-	if err = runApplication(); err != nil {
+	if err = runApplication(cnf); err != nil {
 		logger.Log.Error(err)
 	}
 
@@ -49,29 +49,40 @@ func main() {
 }
 
 // runApplication производим старт приложения
-func runApplication() error {
+func runApplication(cnf *config.CliConfig) error {
 	ctx, cancel := context.WithCancel(context.Background()) // Контекст для правильной остановки синхронизации
 	defer func() {
 		logger.Log.Info("Cancel context")
 		cancel()
 	}()
 
-	// Вызываем функцию закрытия базы данных
-	defer closeDB()
+	pool, err := database.NewDB(cnf.DatabaseDSN)
 	// Инициализируем базу данных
-	err := initDB()
 	if err != nil {
 		return err
 	}
+	// Вызываем функцию закрытия базы данных
+	defer pool.Close()
+	// Производим миграции базы
+	if err = pool.Migrate(); err != nil {
+		return err
+	}
 
-	ordercheck.CheckPool = ordercheck.NewPool(ctx, 1000, 10, time.Minute, config.Params.AccrualSystemAddress) // TODO конфигурация
+	ordercheck.CheckPool = ordercheck.NewPool(ordercheck.PoolConfig{
+		CTX:         ctx,
+		QueueSize:   1000,
+		WorkerCount: 10,
+		Pause:       time.Minute,
+		AccrualURL:  cnf.AccrualSystemAddress,
+		DBExecutor:  pool.DBx,
+	})
 	defer ordercheck.CheckPool.Close()
 
 	wg := new(errgroup.Group)
-	server := initServer()
+	serv := server.NewServer(ctx, router.NewRouter(pool, cnf), cnf.Address)
 	// Запускаем сервер
 	wg.Go(func() error {
-		sErr := server.ListenAndServe()
+		sErr := serv.S.ListenAndServe()
 		if sErr != nil && !errors.Is(sErr, http.ErrServerClosed) {
 			return sErr
 		}
@@ -83,9 +94,7 @@ func runApplication() error {
 	<-stop
 	logger.Log.Info("Stopping server")
 	cancel()
-	if err = stopServer(server, ctx); err != nil { // Запускаем сервер
-		return err
-	}
+	serv.Close()
 
 	// Ожидаем завершения всех горутин перед завершением программы
 	if err = wg.Wait(); err != nil {
@@ -96,72 +105,12 @@ func runApplication() error {
 }
 
 // initLogger инициализируем логер
-func initLogger() (*zap.SugaredLogger, error) {
-	lgr, err := logger.New(config.Params.LogLevel)
+func initLogger(logLevel string) (*zap.SugaredLogger, error) {
+	lgr, err := logger.New(logLevel)
 	if err != nil {
 		return nil, err
 	}
 	logger.Log = lgr
 
 	return lgr, nil
-}
-
-// initDB инициализация подключения к бд
-func initDB() error {
-	// Создание пула подключений к базе данных для приложения
-	var err error
-	database.DB, err = database.NewPgDB(config.Params.DatabaseDSN)
-	if err != nil {
-		return err
-	}
-
-	if config.Params.DatabaseDSN != "" {
-		logger.Log.Info("Migrate migrations")
-		// Применим миграции
-		migrator, err := migrations.New()
-		if err != nil {
-			return err
-		}
-		if err = migrator.Migrate(database.DB); err != nil {
-			return err
-		}
-	}
-	// создаём пул для SQLx на основе полученного пула стандартного SQL
-	database.DBx = database.NewPgDBx(database.DB)
-
-	return nil
-}
-
-// closeDB закрытие базы данных
-func closeDB() {
-	logger.Log.Info("Closing database connection for defer")
-	if database.DB != nil {
-		err := database.DB.Close()
-		if err != nil {
-			logger.Log.Error(err)
-		}
-	}
-}
-
-// initServer Создаём сервер приложения
-func initServer() *http.Server {
-	logger.Log.Infof("Running server on %s", config.Params.Address)
-	server := http.Server{
-		Addr:    config.Params.Address,
-		Handler: getRouter(),
-	}
-
-	return &server
-}
-
-// stopServer закрытие сервера
-func stopServer(server *http.Server, ctx context.Context) error {
-	// Заставляем завершиться сервер и ждём его завершения
-	err := server.Shutdown(ctx)
-	if err != nil {
-		logger.Log.Errorf("Failed to shutdown server: %v", err)
-	}
-	logger.Log.Info("Server stop")
-
-	return err
 }
