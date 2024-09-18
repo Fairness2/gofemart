@@ -45,21 +45,21 @@ func (r *OrderRepository) GetOrdersExcludeOrdersWhereStatusIn(limit int, exclude
 	// Добавляем статусы к условию выборки
 	if len(statuses) > 0 {
 
-		stSql, vars, err := sqlx.In("status_code IN (?)", statuses)
+		stSQL, vars, err := sqlx.In("status_code IN (?)", statuses)
 		if err != nil {
 			return []models.Order{}, err
 		}
-		sqlStr += stSql + " AND "
+		sqlStr += stSQL + " AND "
 		wheres = append(wheres, vars...)
 	}
 
 	// добавляем исключающие номера, которые уже находятся в очереди
 	if len(excludedNumbers) > 0 {
-		stSql, vars, err := sqlx.In("number NOT IN (?)", excludedNumbers)
+		stSQL, vars, err := sqlx.In("number NOT IN (?)", excludedNumbers)
 		if err != nil {
 			return []models.Order{}, err
 		}
-		sqlStr += stSql + " AND "
+		sqlStr += stSQL + " AND "
 		wheres = append(wheres, vars...)
 	}
 	// добавляем условия по дате проверки и лимит записей в одной выборке
