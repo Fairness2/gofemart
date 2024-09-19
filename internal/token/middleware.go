@@ -18,12 +18,14 @@ type Key string
 // UserKey ключ авторизованного пользователя в контексте
 var UserKey Key = "user"
 
+// Authenticator выполняет аутентификацию и авторизацию пользователей с использованием токенов JWT и пула баз данных SQL
 type Authenticator struct {
 	dbPool          repositories.SQLExecutor
 	jwtKeys         *config.JWTKeys
 	tokenExpiration time.Duration
 }
 
+// NewAuthenticator создает и возвращает новый экземпляр Authenticator с указанными параметрами подключения к базе данных и токенам JWT.
 func NewAuthenticator(dbPool repositories.SQLExecutor, jwtKeys *config.JWTKeys, tokenExpiration time.Duration) *Authenticator {
 	return &Authenticator{
 		dbPool:          dbPool,
@@ -37,11 +39,11 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tknString := r.Header.Get("Authorization")
 		if tknString == "" {
-			helpers.ProcessErrorWithStatus("Authorization header is not exists", http.StatusUnauthorized, w)
+			helpers.ProcessResponseWithStatus("Authorization header is not exists", http.StatusUnauthorized, w)
 			return
 		}
 		if !strings.HasPrefix(tknString, "Bearer ") {
-			helpers.ProcessErrorWithStatus("Authorization header is not exists", http.StatusUnauthorized, w)
+			helpers.ProcessResponseWithStatus("Authorization header is not exists", http.StatusUnauthorized, w)
 			return
 		}
 		tknString = strings.TrimPrefix(tknString, "Bearer ")
@@ -49,19 +51,19 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 		tkn, err := generator.Parse(tknString)
 		if err != nil {
 			logger.Log.Info(err)
-			helpers.ProcessErrorWithStatus("token is not valid", http.StatusUnauthorized, w)
+			helpers.ProcessResponseWithStatus("token is not valid", http.StatusUnauthorized, w)
 			return
 		}
 		idStr, err := tkn.Claims.GetSubject()
 		if err != nil {
 			logger.Log.Info(err)
-			helpers.ProcessErrorWithStatus("token doesnt has user id", http.StatusUnauthorized, w)
+			helpers.ProcessResponseWithStatus("token doesnt has user id", http.StatusUnauthorized, w)
 			return
 		}
 		userID, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
 			logger.Log.Info(err)
-			helpers.ProcessErrorWithStatus("user id is incorrect", http.StatusUnauthorized, w)
+			helpers.ProcessResponseWithStatus("user id is incorrect", http.StatusUnauthorized, w)
 			return
 		}
 
@@ -72,7 +74,7 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 			return
 		}
 		if !exists {
-			helpers.ProcessErrorWithStatus("user does not exist", http.StatusUnauthorized, w)
+			helpers.ProcessResponseWithStatus("user does not exist", http.StatusUnauthorized, w)
 			return
 		}
 

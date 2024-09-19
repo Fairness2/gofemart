@@ -35,16 +35,28 @@ func NewRouter(dbPool *database.DBPool, cnf *config.CliConfig) chi.Router {
 	return router
 }
 
+// registerRoutesWithAuth маршруты с аутентификацией
 func registerRoutesWithAuth(bHandlers *balance.Handlers, oHandlers *orders.Handlers, authenticator *token.Authenticator) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Use(authenticator.Middleware)
-
+		r.Use(
+			authenticator.Middleware,
+			cMiddleware.Compress(5, "gzip", "deflate"),
+		)
 		r.Post("/orders", oHandlers.RegisterOrderHandler)
-		r.Get("/orders", oHandlers.GetOrdersHandler)
-
 		r.Post("/balance/withdraw", bHandlers.WithdrawHandler)
 		r.Get("/balance", bHandlers.GetBalanceHandler)
+		r.Group(registerRoutesWithCompressed(oHandlers))
+	}
+}
 
+// registerRoutesWithCompressed настраивает маршруты для заказов с применением промежуточного программного обеспечения сжатия.
+// Так как ответы данных путей могут быть большими
+func registerRoutesWithCompressed(oHandlers *orders.Handlers) func(r chi.Router) {
+	return func(r chi.Router) {
+		r.Use(
+			cMiddleware.Compress(5, "gzip", "deflate"),
+		)
+		r.Get("/orders", oHandlers.GetOrdersHandler)
 		r.Get("/withdrawals", oHandlers.GetOrdersWwithdrawalsHandler)
 	}
 }

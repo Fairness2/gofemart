@@ -16,6 +16,7 @@ type UserMutex struct {
 	mutex    sync.RWMutex
 }
 
+// GetUserMutexInstance возвращает глобальный экземпляр UserMutex для обеспечения безопасного доступа к мьютексам пользователей.
 func GetUserMutexInstance() *UserMutex {
 	return userMutexInstance
 }

@@ -49,7 +49,7 @@ func (l *Handlers) RegistrationHandler(response http.ResponseWriter, request *ht
 		return
 	}
 	if exists {
-		helpers.ProcessErrorWithStatus("user already exists", http.StatusConflict, response)
+		helpers.ProcessResponseWithStatus("user already exists", http.StatusConflict, response)
 		return
 	}
 
@@ -159,7 +159,7 @@ func (l *Handlers) LoginHandler(response http.ResponseWriter, request *http.Requ
 		return
 	}
 	if !exists {
-		helpers.ProcessErrorWithStatus("password and login are incorrect", http.StatusUnauthorized, response)
+		helpers.ProcessResponseWithStatus("password and login are incorrect", http.StatusUnauthorized, response)
 		return
 	}
 
@@ -169,7 +169,7 @@ func (l *Handlers) LoginHandler(response http.ResponseWriter, request *http.Requ
 		return
 	}
 	if !ok {
-		helpers.ProcessErrorWithStatus("password and login are incorrect", http.StatusUnauthorized, response)
+		helpers.ProcessResponseWithStatus("password and login are incorrect", http.StatusUnauthorized, response)
 		return
 	}
 

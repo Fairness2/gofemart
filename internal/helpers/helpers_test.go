@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"github.com/stretchr/testify/assert"
 	"gofemart/internal/logger"
 	"io"
 	"net/http"
@@ -9,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestSetHTTPError(t *testing.T) {
+func TestSetHTTPResponse(t *testing.T) {
 	cases := []struct {
 		name             string
 		mockStatus       int
@@ -45,7 +44,14 @@ func TestSetHTTPError(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			response := httptest.NewRecorder()
-			SetHTTPResponse(response, c.mockStatus, []byte(c.mockMessage))
+			err := SetHTTPResponse(response, c.mockStatus, []byte(c.mockMessage))
+			if err != nil {
+				t.Errorf(
+					"SetHTTPResponse error = %v, wantErr %v",
+					err,
+					false,
+				)
+			}
 			result := response.Result()
 			defer func() {
 				if cErr := result.Body.Close(); cErr != nil {
@@ -53,10 +59,16 @@ func TestSetHTTPError(t *testing.T) {
 				}
 			}()
 
-			assert.Equal(t, c.mockStatus, result.StatusCode)
+			if result.StatusCode != c.mockStatus {
+				t.Errorf("Status is not expected. result.StatusCode = %v, want %v", result.StatusCode, c.mockStatus)
+			}
 			body, err := io.ReadAll(result.Body)
-			assert.NoError(t, err)
-			assert.Equal(t, c.expectedResponse, string(body))
+			if err != nil {
+				t.Errorf("Read boay error is not expected. error = %v, wantErr %v", err, false)
+			}
+			if c.expectedResponse != string(body) {
+				t.Errorf("Body is not expected. body = %v, want %v", string(body), c.expectedResponse)
+			}
 		})
 	}
 }

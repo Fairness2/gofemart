@@ -32,6 +32,8 @@ func GetErrorJSONBody(message string, statue int) ([]byte, error) {
 	return json.Marshal(responseBody)
 }
 
+// SetInternalError регистрирует указанную ошибку
+// и устанавливает внутренний ответ об ошибке сервера для указанного средства записи HTTP-ответов.
 func SetInternalError(err error, response http.ResponseWriter) {
 	logger.Log.Error(err)
 	if rErr := SetHTTPResponse(response, http.StatusInternalServerError, []byte{}); rErr != nil {
@@ -39,6 +41,8 @@ func SetInternalError(err error, response http.ResponseWriter) {
 	}
 }
 
+// ProcessRequestErrorWithBody обрабатывает ошибки во время обработки запроса,
+// устанавливая соответствующий HTTP-статус и тело.
 func ProcessRequestErrorWithBody(err error, response http.ResponseWriter) {
 	var errWithStatus *gofemarterrors.RequestError
 	var errBody []byte
@@ -60,7 +64,8 @@ func ProcessRequestErrorWithBody(err error, response http.ResponseWriter) {
 	}
 }
 
-func ProcessErrorWithStatus(message string, status int, response http.ResponseWriter) {
+// ProcessResponseWithStatus обрабатывает ошибку, создавая тело ошибки JSON, устанавливая соответствующий код статуса HTTP и записывая ответ.
+func ProcessResponseWithStatus(message string, status int, response http.ResponseWriter) {
 	errBody, responseErr := GetErrorJSONBody(message, status)
 	if responseErr != nil {
 		SetInternalError(responseErr, response)

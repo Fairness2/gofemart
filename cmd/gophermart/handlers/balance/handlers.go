@@ -38,11 +38,11 @@ func (b *Handlers) WithdrawHandler(response http.ResponseWriter, request *http.R
 	// Проверим полученный номер алгоритмом луна
 	ok, err := luna.Check(body.OrderNumber)
 	if err != nil {
-		helpers.ProcessErrorWithStatus(err.Error(), http.StatusUnprocessableEntity, response)
+		helpers.ProcessResponseWithStatus(err.Error(), http.StatusUnprocessableEntity, response)
 		return
 	}
 	if !ok {
-		helpers.ProcessErrorWithStatus("Luna check failed", http.StatusUnprocessableEntity, response)
+		helpers.ProcessResponseWithStatus("Luna check failed", http.StatusUnprocessableEntity, response)
 		return
 	}
 
@@ -53,7 +53,7 @@ func (b *Handlers) WithdrawHandler(response http.ResponseWriter, request *http.R
 		return
 	}
 	if exists {
-		helpers.ProcessErrorWithStatus("Order already exists", http.StatusUnprocessableEntity, response)
+		helpers.ProcessResponseWithStatus("Order already exists", http.StatusUnprocessableEntity, response)
 		return
 	}
 
@@ -64,14 +64,14 @@ func (b *Handlers) WithdrawHandler(response http.ResponseWriter, request *http.R
 		return
 	}
 	if exists {
-		helpers.ProcessErrorWithStatus("Withdraw already exists", http.StatusUnprocessableEntity, response)
+		helpers.ProcessResponseWithStatus("Withdraw already exists", http.StatusUnprocessableEntity, response)
 		return
 	}
 
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
-		helpers.ProcessErrorWithStatus("User not found", http.StatusUnauthorized, response)
+		helpers.ProcessResponseWithStatus("User not found", http.StatusUnauthorized, response)
 		return
 	}
 
@@ -79,14 +79,14 @@ func (b *Handlers) WithdrawHandler(response http.ResponseWriter, request *http.R
 	order := &models.Order{Number: body.OrderNumber}
 	if err := service.Spend(user, body.Sum, order); err != nil {
 		if errors.Is(err, services.ErrorNotEnoughItems) {
-			helpers.ProcessErrorWithStatus(err.Error(), http.StatusPaymentRequired, response)
+			helpers.ProcessResponseWithStatus(err.Error(), http.StatusPaymentRequired, response)
 		} else {
 			helpers.SetInternalError(err, response)
 		}
 		return
 	}
 
-	helpers.ProcessErrorWithStatus("Success", http.StatusOK, response)
+	helpers.ProcessResponseWithStatus("Success", http.StatusOK, response)
 }
 
 // getBody получаем тело для регистрации
@@ -123,7 +123,7 @@ func (b *Handlers) GetBalanceHandler(response http.ResponseWriter, request *http
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
-		helpers.ProcessErrorWithStatus("User not found", http.StatusUnauthorized, response)
+		helpers.ProcessResponseWithStatus("User not found", http.StatusUnauthorized, response)
 		return
 	}
 	rep := repositories.NewAccountRepository(request.Context(), b.dbPool)

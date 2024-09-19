@@ -60,12 +60,13 @@ var CheckPool *Pool
 
 // PoolConfig Конфигурация для пула обработки
 type PoolConfig struct {
-	CTX         context.Context
-	QueueSize   int
-	WorkerCount int
-	Pause       time.Duration
-	AccrualURL  string
-	DBExecutor  repositories.SQLExecutor
+	CTX             context.Context
+	QueueSize       int           // количество заказов, которые одновременно могут находиться в очереди на проверке, если очередь заполнена, то они будут отложены
+	WorkerCount     int           // количество обработчиков заказов
+	Pause           time.Duration // пауза в запросах к сервису начислений, если он ответил ответом, что слишком много запросов
+	AccrualURL      string        // адрес системы расчёта начислений
+	DBExecutor      repositories.SQLExecutor
+	DBCheckDuration time.Duration // период в который проверяется база данных на необработанные заказы
 }
 
 // NewPool инициализирует и возвращает новый экземпляр Pool с указанным контекстом, размером очереди, количеством рабочих процессов, длительностью паузы и URL-адресом накопления.
@@ -87,14 +88,14 @@ func NewPool(cnf PoolConfig) *Pool {
 		orderRepo:         getOrderRepository(cnf.CTX, cnf.DBExecutor),
 		accrualProxy:      proxy,
 	}
-	initPool(cnf.WorkerCount, pool)
+	initPool(cnf.WorkerCount, pool, cnf.DBCheckDuration)
 
 	return pool
 }
 
 // initPool инициализирует и запускает пул рабочих процессов,
 // запускает рабочие процессы и планирует проверки базы данных.
-func initPool(workerCount int, pool *Pool) {
+func initPool(workerCount int, pool *Pool, dbCheckDuration time.Duration) {
 	// Запускаем проверку закрытия
 	go pool.finishWork()
 	// Запускаем воркеры
@@ -104,7 +105,7 @@ func initPool(workerCount int, pool *Pool) {
 	}
 	// Запускаем проверку базы данных
 	pool.wg.Add(1)
-	go pool.pushFromDB(5 * time.Second)
+	go pool.pushFromDB(dbCheckDuration)
 }
 
 // Close функция закрытия пула, закрываем локальный контекст, ждём завершения всех воркеров, закрываем канал очереди

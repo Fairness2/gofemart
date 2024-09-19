@@ -16,7 +16,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 )
 
 func main() {
@@ -69,12 +68,13 @@ func runApplication(cnf *config.CliConfig) error {
 	}
 
 	ordercheck.CheckPool = ordercheck.NewPool(ordercheck.PoolConfig{
-		CTX:         ctx,
-		QueueSize:   1000,
-		WorkerCount: 10,
-		Pause:       time.Minute,
-		AccrualURL:  cnf.AccrualSystemAddress,
-		DBExecutor:  pool.DBx,
+		CTX:             ctx,
+		QueueSize:       cnf.QueueSize,
+		WorkerCount:     cnf.WorkerCount,
+		Pause:           cnf.AccrualSenderPause,
+		AccrualURL:      cnf.AccrualSystemAddress,
+		DBExecutor:      pool.DBx,
+		DBCheckDuration: cnf.DBCheckDuration,
 	})
 	defer ordercheck.CheckPool.Close()
 

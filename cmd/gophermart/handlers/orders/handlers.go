@@ -34,18 +34,18 @@ func (h *Handlers) RegisterOrderHandler(response http.ResponseWriter, request *h
 	// Проверим полученный номер алгоритмом луна
 	ok, err := luna.Check(strBody)
 	if err != nil {
-		helpers.ProcessErrorWithStatus(err.Error(), http.StatusBadRequest, response)
+		helpers.ProcessResponseWithStatus(err.Error(), http.StatusBadRequest, response)
 		return
 	}
 	if !ok {
-		helpers.ProcessErrorWithStatus("Luna check failed", http.StatusUnprocessableEntity, response)
+		helpers.ProcessResponseWithStatus("Luna check failed", http.StatusUnprocessableEntity, response)
 		return
 	}
 
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
-		helpers.ProcessErrorWithStatus("User not found", http.StatusUnauthorized, response)
+		helpers.ProcessResponseWithStatus("User not found", http.StatusUnauthorized, response)
 		return
 	}
 
@@ -58,11 +58,11 @@ func (h *Handlers) RegisterOrderHandler(response http.ResponseWriter, request *h
 	}
 	if ok {
 		if order.UserID != user.ID {
-			helpers.ProcessErrorWithStatus("order was loaded by another user", http.StatusConflict, response)
+			helpers.ProcessResponseWithStatus("order was loaded by another user", http.StatusConflict, response)
 			return
 		}
 		if order.UserID == user.ID {
-			helpers.ProcessErrorWithStatus("order was already loaded", http.StatusOK, response)
+			helpers.ProcessResponseWithStatus("order was already loaded", http.StatusOK, response)
 			return
 		}
 	}
@@ -77,7 +77,7 @@ func (h *Handlers) RegisterOrderHandler(response http.ResponseWriter, request *h
 		helpers.SetInternalError(err, response)
 		return
 	}
-	helpers.ProcessErrorWithStatus("new order number accepted for processing", http.StatusAccepted, response)
+	helpers.ProcessResponseWithStatus("new order number accepted for processing", http.StatusAccepted, response)
 }
 
 func (h *Handlers) getOrderFromBd(rep *repositories.OrderRepository, number string) (*models.Order, bool, error) {
@@ -96,7 +96,7 @@ func (h *Handlers) GetOrdersHandler(response http.ResponseWriter, request *http.
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
-		helpers.ProcessErrorWithStatus("User not found", http.StatusUnauthorized, response)
+		helpers.ProcessResponseWithStatus("User not found", http.StatusUnauthorized, response)
 		return
 	}
 
@@ -108,7 +108,7 @@ func (h *Handlers) GetOrdersHandler(response http.ResponseWriter, request *http.
 	}
 
 	if len(orders) == 0 {
-		helpers.ProcessErrorWithStatus("no orders found", http.StatusNoContent, response)
+		helpers.ProcessResponseWithStatus("no orders found", http.StatusNoContent, response)
 		return
 	}
 
@@ -126,7 +126,7 @@ func (h *Handlers) GetOrdersWwithdrawalsHandler(response http.ResponseWriter, re
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)
 	if !ok {
-		helpers.ProcessErrorWithStatus("User not found", http.StatusUnauthorized, response)
+		helpers.ProcessResponseWithStatus("User not found", http.StatusUnauthorized, response)
 		return
 	}
 
@@ -138,7 +138,7 @@ func (h *Handlers) GetOrdersWwithdrawalsHandler(response http.ResponseWriter, re
 	}
 
 	if len(orders) == 0 {
-		helpers.ProcessErrorWithStatus("no orders withdrawals", http.StatusNoContent, response)
+		helpers.ProcessResponseWithStatus("no orders withdrawals", http.StatusNoContent, response)
 		return
 	}
 

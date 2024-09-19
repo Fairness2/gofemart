@@ -64,6 +64,21 @@ func parseFromEnv(params *CliConfig) error {
 	if cnf.PublicKey != "" {
 		params.PublicKey = cnf.PublicKey
 	}
+	if cnf.QueueSize > 0 {
+		params.QueueSize = cnf.QueueSize
+	}
+	if cnf.WorkerCount > 0 {
+		params.WorkerCount = cnf.WorkerCount
+	}
+	if cnf.TokenExpiration > 0 {
+		params.TokenExpiration = cnf.TokenExpiration
+	}
+	if cnf.AccrualSenderPause > 0 {
+		params.AccrualSenderPause = cnf.AccrualSenderPause
+	}
+	if cnf.DBCheckDuration > 0 {
+		params.DBCheckDuration = cnf.DBCheckDuration
+	}
 	return nil
 }
 
@@ -79,6 +94,11 @@ func parseFromCli(cnf *CliConfig) error {
 	flag.StringVar(&cnf.PublicKeyPath, "pukp", DefaultPublicKeyPath, "path to public key")
 	flag.StringVar(&cnf.PrivateKey, "pk", DefaultPrivateKey, "private key")
 	flag.StringVar(&cnf.PublicKey, "puk", DefaultPublicKey, "public key")
+	flag.IntVar(&cnf.QueueSize, "qs", DefaultQueueSize, "size of queue")
+	flag.IntVar(&cnf.WorkerCount, "wc", DefaultWorkerCount, "count of workers")
+	flag.DurationVar(&cnf.TokenExpiration, "te", DefaultTokenExpiration, "token expiration time")
+	flag.DurationVar(&cnf.AccrualSenderPause, "aps", DefaultAccrualSenderPause, "pause between sending accruals")
+	flag.DurationVar(&cnf.DBCheckDuration, "dbs", DefaultDBCheckDuration, "duration between BD checks")
 
 	// Парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse() // Сейчас будет выход из приложения, поэтому код ниже не будет исполнен, но может пригодиться в будущем, если поменять флаг выхода или будет несколько сетов
