@@ -28,7 +28,7 @@ func TestPush(t *testing.T) {
 		{
 			name: "push_to_full_pool",
 			setup: func(p *Pool) {
-				p.inChanel = make(chan string, 0)
+				p.inChanel = make(chan string)
 			},
 			order: &models.Order{
 				Number: "1",
