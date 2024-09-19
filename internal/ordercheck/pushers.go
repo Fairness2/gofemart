@@ -7,7 +7,7 @@ import (
 
 // Push добавляет заказ в очередь пула,
 // если очередь не заполнена и пул не закрыт, возвращая статус успешного выполнения и ошибку.
-func (p *Pool) Push(order *models.Order) (bool, error) { // TODO ограниченная очередь
+func (p *Pool) Push(order *models.Order) (bool, error) {
 	logger.Log.Infow("Push order to pool", "order", order.Number)
 	if p.closeFlag.Load() {
 		return false, ErrorPoolClosed
