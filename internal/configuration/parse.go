@@ -6,12 +6,15 @@ import (
 	"flag"
 	"github.com/caarlos0/env/v6"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"os"
 )
 
 // NewConfig инициализирует новую консольную конфигурацию, обрабатывает аргументы командной строки
 func NewConfig() (*CliConfig, error) {
-	// Регистрируем новое хранилище
+
+	/*// Регистрируем новое хранилище
 	cnf := NewDefaultConfig()
 	// Заполняем конфигурацию из параметров командной строки
 	if err := parseFromCli(cnf); err != nil {
@@ -19,6 +22,10 @@ func NewConfig() (*CliConfig, error) {
 	}
 	// Заполняем конфигурацию из окружения
 	if err := parseFromEnv(cnf); err != nil {
+		return nil, err
+	}*/
+	cnf := &CliConfig{}
+	if err := parseFromViper(cnf); err != nil {
 		return nil, err
 	}
 	// Парсим ключи для JWT токена
@@ -89,7 +96,7 @@ func parseFromCli(cnf *CliConfig) error {
 	flag.StringVar(&cnf.LogLevel, "ll", DefaultLogLevel, "level of logging")
 	flag.StringVar(&cnf.DatabaseDSN, "d", DefaultDatabaseDSN, "database connection")
 	flag.StringVar(&cnf.AccrualSystemAddress, "к", DefaultAccrualSystemAddress, "accrual system address")
-	flag.StringVar(&cnf.HashKey, "k", DefaultHashKey, "encrypted key")
+	flag.StringVar(&cnf.HashKey, "hk", DefaultHashKey, "encrypted key")
 	flag.StringVar(&cnf.PrivateKeyPath, "pkp", DefaultPrivateKeyPath, "path to private key")
 	flag.StringVar(&cnf.PublicKeyPath, "pukp", DefaultPublicKeyPath, "path to public key")
 	flag.StringVar(&cnf.PrivateKey, "pk", DefaultPrivateKey, "private key")
@@ -162,4 +169,83 @@ func parseKeysFromFile(privateKeyPath string, publicKeyPath string, privateKey s
 	}
 
 	return pkey, pubKey, nil
+}
+
+// parseFromViper анализирует конфигурацию из переменных среды и аргументов командной строки с помощью Viper.
+func parseFromViper(cnf *CliConfig) error {
+	if err := bindEnv(); err != nil {
+		return err
+	}
+	if err := bindArg(); err != nil {
+		return err
+	}
+
+	return viper.Unmarshal(cnf)
+}
+
+// bindEnv привязывает переменные среды к ключам конфигурации Viper, гарантируя, что каждая привязка проверяется на наличие ошибок.
+func bindEnv() error {
+	if err := viper.BindEnv("Address", "RUN_ADDRESS"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("LogLevel", "LOG_LEVEL"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("DatabaseDSN", "DATABASE_URI"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("AccrualSystemAddress", "ACCRUAL_SYSTEM_ADDRESS"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("HashKey", "KEY"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("PrivateKeyPath", "PKEYP"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("PublicKeyPath", "PUKEYP"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("PrivateKey", "PKEY"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("PublicKey", "PUKEY"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("TokenExpiration", "TOKEN_EXPIRATION"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("AccrualSenderPause", "ACCRUAL_SENDER_PAUSE"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("QueueSize", "QUEUE_SIZE"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("WorkerCount", "WORKER_COUNT"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("DBCheckDuration", "DB_CHECK_DURATION"); err != nil {
+		return err
+	}
+	return nil
+}
+
+// bindArg привязывает аргументы командной строки к ключам конфигурации и устанавливает значения по умолчанию с помощью библиотек pflag и viper.
+func bindArg() error {
+	pflag.StringP("Address", "a", DefaultServerURL, "address and port to run server")
+	pflag.StringP("LogLevel", "l", DefaultLogLevel, "level of logging")
+	pflag.StringP("DatabaseDSN", "d", DefaultDatabaseDSN, "database connection")
+	pflag.StringP("AccrualSystemAddress", "k", DefaultAccrualSystemAddress, "accrual system address")
+	pflag.StringP("HashKey", "h", DefaultHashKey, "encrypted key")
+	pflag.StringP("PrivateKeyPath", "p", DefaultPrivateKeyPath, "path to private key")
+	pflag.StringP("PublicKeyPath", "u", DefaultPublicKeyPath, "path to public key")
+	pflag.StringP("PrivateKey", "r", DefaultPrivateKey, "private key")
+	pflag.StringP("PublicKey", "b", DefaultPublicKey, "public key")
+	pflag.IntP("QueueSize", "q", DefaultQueueSize, "size of queue")
+	pflag.IntP("WorkerCount", "w", DefaultWorkerCount, "count of workers")
+	pflag.DurationP("TokenExpiration", "t", DefaultTokenExpiration, "token expiration time")
+	pflag.DurationP("AccrualSenderPause", "s", DefaultAccrualSenderPause, "pause between sending accruals")
+	pflag.DurationP("DBCheckDuration", "c", DefaultDBCheckDuration, "duration between BD checks")
+	pflag.Parse()
+	return viper.BindPFlags(pflag.CommandLine)
 }
