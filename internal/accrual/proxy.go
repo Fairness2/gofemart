@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// getOrderURL эндпоинт для получения начислений по заказам
 const getOrderURL = "/api/orders/"
 
 // ErrorOrderNotRegistered указывает на то, что заказ не зарегистрирован в сервисе начисления.
@@ -22,6 +23,9 @@ var ErrorInternalAccrual = errors.New("accrual service internal error")
 
 // ErrorTooManyRequests указывает, что сервер получил слишком много запросов.
 var ErrorTooManyRequests = errors.New("too many requests")
+
+// ErrorUnknownStatusRequests указывает,что сервер получил непредвиденный ответ
+var ErrorUnknownStatusRequests = errors.New("unknown accrual error")
 
 // TooManyRequestError представляет собой ошибку, указывающую, что к службе было отправлено слишком много запросов.
 // Он включает внутреннюю ошибку и рекомендуемую продолжительность паузы перед повторной попыткой запроса.
@@ -83,7 +87,7 @@ func (p *Proxy) Accrual(order *models.Order) (*payloads.Accrual, error) {
 		logger.Log.Infow("Accrual check failed", "order", order.Number, "status", http.StatusInternalServerError)
 		return nil, ErrorInternalAccrual
 	case http.StatusTooManyRequests:
-		logger.Log.Infow("Too many requests", "order", order.Number, "status", 429)
+		logger.Log.Infow("Too many requests", "order", order.Number, "status", http.StatusTooManyRequests)
 		pauseDuration := p.pauseDuration
 		if pauseHeader := response.Header().Get("Retry-After"); pauseHeader != "" {
 			pauseHeaderValue, err := time.ParseDuration(pauseHeader)
@@ -94,11 +98,12 @@ func (p *Proxy) Accrual(order *models.Order) (*payloads.Accrual, error) {
 			}
 		}
 		return nil, &TooManyRequestError{InternalError: ErrorTooManyRequests, PauseDuration: pauseDuration}
-	case 200:
-		logger.Log.Infow("Order registered", "order", order.Number, "status", 200)
+	case http.StatusOK:
+		logger.Log.Infow("Order registered", "order", order.Number, "status", http.StatusOK)
 		return p.processAccrualResponse(response)
 	default:
-		return nil, errors.New("unknown accrual error")
+		logger.Log.Infow("Unknown status", "order", order.Number, "status", response.StatusCode())
+		return nil, ErrorUnknownStatusRequests
 	}
 }
 

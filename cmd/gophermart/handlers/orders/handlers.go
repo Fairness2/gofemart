@@ -13,16 +13,20 @@ import (
 	"strings"
 )
 
+// Handlers Хэндлеры работы с заказами
 type Handlers struct {
 	dbPool repositories.SQLExecutor
 }
 
+// NewHandlers создает новый экземпляр Handlers с предоставленным SQLExecutor.
 func NewHandlers(dbPool repositories.SQLExecutor) *Handlers {
 	return &Handlers{
 		dbPool: dbPool,
 	}
 }
 
+// RegisterOrderHandler обрабатывает запрос на регистрацию заказа.
+// Он считывает номер заказа, проверяет его с помощью алгоритма Луна
 func (h *Handlers) RegisterOrderHandler(response http.ResponseWriter, request *http.Request) {
 	body, err := io.ReadAll(request.Body)
 	if err != nil {
@@ -80,18 +84,24 @@ func (h *Handlers) RegisterOrderHandler(response http.ResponseWriter, request *h
 	helpers.ProcessResponseWithStatus("new order number accepted for processing", http.StatusAccepted, response)
 }
 
+// getOrderFromBd извлекает заказ из базы данных на основе предоставленного номера заказа.
+// Он возвращает заказ, логическое значение, указывающее, был ли заказ найден, и любые ошибки, возникшие в ходе процесса.
 func (h *Handlers) getOrderFromBd(rep *repositories.OrderRepository, number string) (*models.Order, bool, error) {
 	return rep.GetOrderByNumber(number)
 }
 
+// saveOrder сохраняет новый заказ в базе данных, используя предоставленный репозиторий заказов.
 func (h *Handlers) saveOrder(rep *repositories.OrderRepository, order *models.Order) error {
 	return rep.CreateOrder(order)
 }
 
+// sendToQueue отправляет заказ в очередь для дальнейшей обработки.
+// Возвращает логическое значение, указывающее на успешность операции, и ошибку, если она возникла.
 func (h *Handlers) sendToQueue(order *models.Order) (bool, error) {
 	return ordercheck.CheckPool.Push(order)
 }
 
+// GetOrdersHandler обрабатывает запросы на получение списка заказов для аутентифицированного пользователя.
 func (h *Handlers) GetOrdersHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)
@@ -122,6 +132,7 @@ func (h *Handlers) GetOrdersHandler(response http.ResponseWriter, request *http.
 	}
 }
 
+// GetOrdersWwithdrawalsHandler обрабатывает запросы на получение списка заказов со снятием средств для аутентифицированного пользователя.
 func (h *Handlers) GetOrdersWwithdrawalsHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)

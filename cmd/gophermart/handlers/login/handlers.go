@@ -17,6 +17,7 @@ import (
 	"time"
 )
 
+// Handlers для обработки запросов, связанных с регистрацией и аутентификацией пользователей.
 type Handlers struct {
 	dbPool          repositories.SQLExecutor
 	jwtKeys         *config.JWTKeys
@@ -24,6 +25,8 @@ type Handlers struct {
 	hashKey         string
 }
 
+// NewHandlers инициализирует и возвращает новый экземпляр Handlers,
+// настроенный с указанным подключением к базе данных, ключами JWT, сроком действия токена и хэш-ключом.
 func NewHandlers(dbPool repositories.SQLExecutor, jwtKeys *config.JWTKeys, tokenExpiration time.Duration, hashKey string) *Handlers {
 	return &Handlers{
 		dbPool:          dbPool,
@@ -33,6 +36,7 @@ func NewHandlers(dbPool repositories.SQLExecutor, jwtKeys *config.JWTKeys, token
 	}
 }
 
+// RegistrationHandler обрабатывает регистрацию новых пользователей, включая проверку, создание и генерацию токенов.
 func (l *Handlers) RegistrationHandler(response http.ResponseWriter, request *http.Request) {
 	// Читаем тело запроса
 	body, err := l.getBody(request)
@@ -121,7 +125,7 @@ func (l *Handlers) createUser(body *payloads.Register) (*models.User, error) {
 	return user, nil
 }
 
-// Создаём и сохраняем нового пользователя
+// createAndSaveUser создаём и сохраняем нового пользователя
 func (l *Handlers) createAndSaveUser(body *payloads.Register, repository *repositories.UserRepository) (*models.User, error) {
 	user, err := l.createUser(body)
 	if err != nil {
@@ -139,6 +143,7 @@ func (l *Handlers) createJWTToken(user *models.User) (string, error) {
 	return generator.Generate(user)
 }
 
+// LoginHandler обрабатывает вход пользователя в систему, проверяя учетные данные и генерируя токен авторизации.
 func (l *Handlers) LoginHandler(response http.ResponseWriter, request *http.Request) {
 	// Читаем тело запроса
 	body, err := l.getBody(request)

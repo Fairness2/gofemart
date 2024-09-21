@@ -17,16 +17,21 @@ import (
 	"net/http"
 )
 
+// Handlers для обработки запросов, связанных с балансом.
 type Handlers struct {
 	dbPool repositories.SQLExecutor
 }
 
+// NewHandlers инициализирует и возвращает новый экземпляр Handlers с предоставленным dbPool. SQLExecutor.
 func NewHandlers(dbPool repositories.SQLExecutor) *Handlers {
 	return &Handlers{
 		dbPool: dbPool,
 	}
 }
 
+// WithdrawHandler обрабатывает HTTP-запрос на вывод указанной суммы с баланса счета пользователя.
+// Он проверяет номер заказа с помощью алгоритма Luna, проверяет, существует ли уже заказ или вывод,
+// извлекает аутентифицированного пользователя и пытается потратить указанную сумму.
 func (b *Handlers) WithdrawHandler(response http.ResponseWriter, request *http.Request) {
 	// Читаем тело запроса
 	body, err := b.getBody(request)
@@ -115,10 +120,12 @@ func (b *Handlers) getBody(request *http.Request) (*payloads.Withdraw, error) {
 	return &body, nil
 }
 
+// getBalanceService создает и возвращает новый экземпляр BalanceService, используя предоставленный контекст и пул базы данных.
 func (b *Handlers) getBalanceService(ctx context.Context) *services.BalanceService {
 	return services.NewBalanceService(ctx, b.dbPool)
 }
 
+// GetBalanceHandler обрабатывает HTTP-запросы для получения баланса счета аутентифицированного пользователя.
 func (b *Handlers) GetBalanceHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)
