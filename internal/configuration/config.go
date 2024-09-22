@@ -8,7 +8,7 @@ import (
 
 const (
 	// DefaultServerURL Url сервера получателя метрик по умолчанию
-	DefaultServerURL = "localhost:8080"
+	DefaultServerURL = ":8080"
 	// DefaultLogLevel Уровень логирования по умолчанию
 	DefaultLogLevel = "info"
 	// DefaultDatabaseDSN подключение к базе данных

@@ -184,7 +184,7 @@ func parseFromViper(cnf *CliConfig) error {
 }
 
 // bindEnv привязывает переменные среды к ключам конфигурации Viper, гарантируя, что каждая привязка проверяется на наличие ошибок.
-func bindEnv() error {
+func bindEnv() error { // TODO подумать о том, чтобы сделать аннотацию и использовать рефлексию
 	if err := viper.BindEnv("Address", "RUN_ADDRESS"); err != nil {
 		return err
 	}

@@ -14,6 +14,20 @@ services:
     #    tmpfs:
     #      size: 134217728 # 128*2^20 bytes = 128Mb
     environment:
+      POSTGRES_DB: gofemart
       POSTGRES_PASSWORD: example
     ports:
-      - 5432:5432
+      - "5432:5432"
+
+  go:
+    container_name: gofemart
+    build:
+      context: .
+      dockerfile: ./deployments/docker/go/Dockerfile
+    ports:
+      - "8645:8080"
+    environment:
+      - DATABASE_URI=postgresql://postgres:example@db/gofemart
+    depends_on:
+      - db
+
