@@ -1,0 +1,302 @@
+basePath: /
+definitions:
+  models.Balance:
+    properties:
+      current:
+        type: number
+      withdrawn:
+        type: number
+    type: object
+  models.JSONTime:
+    properties:
+      time.Time:
+        type: string
+    type: object
+  models.OrderWithAccrual:
+    properties:
+      accrual:
+        type: number
+      number:
+        type: string
+      status:
+        type: string
+      updated_at:
+        $ref: '#/definitions/models.JSONTime'
+    type: object
+  models.OrderWithdraw:
+    properties:
+      order:
+        type: string
+      processed_at:
+        $ref: '#/definitions/models.JSONTime'
+      sum:
+        type: number
+    type: object
+  payloads.Authorization:
+    properties:
+      token:
+        type: string
+    type: object
+  payloads.ErrorResponseBody:
+    properties:
+      message:
+        type: string
+      status:
+        description: Успешный или не успешный результат
+        type: integer
+    type: object
+  payloads.Register:
+    properties:
+      login:
+        type: string
+      password:
+        type: string
+    type: object
+  payloads.Withdraw:
+    properties:
+      order:
+        type: string
+      sum:
+        type: number
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Система баланса поощрений
+  title: GoFemart API
+  version: "1.0"
+paths:
+  /api/user/balance:
+    get:
+      description: Запрос на получение баланса счета аутентифицированного пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Balance'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+      summary: Получение баланса
+      tags:
+      - balance
+  /api/user/balance/withdraw:
+    post:
+      consumes:
+      - application/json
+      description: Запрос на вывод суммы с баланса по указанному заказу
+      parameters:
+      - description: Withdraw payload
+        in: body
+        name: withdraw
+        required: true
+        schema:
+          $ref: '#/definitions/payloads.Withdraw'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "402":
+          description: Not Enough Funds
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "422":
+          description: Withdraw already exists
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+      summary: Вывод суммы по заказу
+      tags:
+      - balance
+  /api/user/login:
+    post:
+      consumes:
+      - application/json
+      description: обрабатывает вход пользователя в систему, проверяя учетные данные
+        и генерируя токен авторизации.
+      parameters:
+      - description: Login Payload
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/payloads.Register'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/payloads.Authorization'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+      summary: Вход пользователя в систему
+      tags:
+      - Пользователь
+  /api/user/orders:
+    get:
+      description: Возвращает список заказов для аутентифицированного пользователя.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список заказов
+          schema:
+            items:
+              $ref: '#/definitions/models.OrderWithAccrual'
+            type: array
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Получить список заказов
+      tags:
+      - Заказы
+    post:
+      consumes:
+      - application/json
+      description: обрабатывает запрос на регистрацию заказа.
+      parameters:
+      - description: Order number
+        in: body
+        name: order
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+      summary: Регистрирует новый заказ
+      tags:
+      - Заказы
+  /api/user/register:
+    post:
+      consumes:
+      - application/json
+      description: обрабатывает регистрацию новых пользователей, включая проверку,
+        создание и генерацию токенов.
+      parameters:
+      - description: Register Payload
+        in: body
+        name: register
+        required: true
+        schema:
+          $ref: '#/definitions/payloads.Register'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/payloads.Authorization'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/payloads.ErrorResponseBody'
+      summary: Регистрация нового пользователя
+      tags:
+      - Пользователь
+  /api/user/withdrawals:
+    get:
+      description: Возвращает список заказов со снятием средств для аутентифицированного
+        пользователя.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список заказов
+          schema:
+            items:
+              $ref: '#/definitions/models.OrderWithdraw'
+            type: array
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Получить заказы со снятием средств
+      tags:
+      - Заказы
+swagger: "2.0"
