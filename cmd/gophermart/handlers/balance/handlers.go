@@ -32,6 +32,21 @@ func NewHandlers(dbPool repositories.SQLExecutor) *Handlers {
 // WithdrawHandler обрабатывает HTTP-запрос на вывод указанной суммы с баланса счета пользователя.
 // Он проверяет номер заказа с помощью алгоритма Luna, проверяет, существует ли уже заказ или вывод,
 // извлекает аутентифицированного пользователя и пытается потратить указанную сумму.
+// @Summary Вывод суммы по заказу
+// @Description Запрос на вывод суммы с баланса по указанному заказу
+// @Tags balance
+// @Accept json
+// @Produce json
+// @Param withdraw body payloads.Withdraw true "Withdraw payload"
+// @Success 200 {object} payloads.ErrorResponseBody
+// @Failure 400 {object} payloads.ErrorResponseBody
+// @Failure 401 {object} payloads.ErrorResponseBody
+// @Failure 402 {object} payloads.ErrorResponseBody "Not Enough Funds"
+// @Failure 422 {object} payloads.ErrorResponseBody "Luna check failed"
+// @Failure 422 {object} payloads.ErrorResponseBody "Order already exists"
+// @Failure 422 {object} payloads.ErrorResponseBody "Withdraw already exists"
+// @Failure 500 {object} payloads.ErrorResponseBody "Internal Server Error"
+// @Router /api/user/balance/withdraw [post]
 func (b *Handlers) WithdrawHandler(response http.ResponseWriter, request *http.Request) {
 	// Читаем тело запроса
 	body, err := b.getBody(request)
@@ -126,6 +141,14 @@ func (b *Handlers) getBalanceService(ctx context.Context) *services.BalanceServi
 }
 
 // GetBalanceHandler обрабатывает HTTP-запросы для получения баланса счета аутентифицированного пользователя.
+// @Summary Получение баланса
+// @Description Запрос на получение баланса счета аутентифицированного пользователя
+// @Tags balance
+// @Produce json
+// @Success 200 {object} models.Balance
+// @Failure 401 {object} payloads.ErrorResponseBody "Unauthorized"
+// @Failure 500 {object} payloads.ErrorResponseBody "Internal Server Error"
+// @Router /api/user/balance [get]
 func (b *Handlers) GetBalanceHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)

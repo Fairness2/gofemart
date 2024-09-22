@@ -27,6 +27,20 @@ func NewHandlers(dbPool repositories.SQLExecutor) *Handlers {
 
 // RegisterOrderHandler обрабатывает запрос на регистрацию заказа.
 // Он считывает номер заказа, проверяет его с помощью алгоритма Луна
+// @Summary Регистрирует новый заказ
+// @Description обрабатывает запрос на регистрацию заказа.
+// @Tags Заказы
+// @Accept json
+// @Produce json
+// @Param order body string true "Order number"
+// @Success 200 {object} payloads.ErrorResponseBody
+// @Success 202 {object} payloads.ErrorResponseBody
+// @Failure 400 {object} payloads.ErrorResponseBody
+// @Failure 401 {object} payloads.ErrorResponseBody
+// @Failure 409 {object} payloads.ErrorResponseBody
+// @Failure 422 {object} payloads.ErrorResponseBody
+// @Failure 500 {object} payloads.ErrorResponseBody
+// @Router /api/user/orders [post]
 func (h *Handlers) RegisterOrderHandler(response http.ResponseWriter, request *http.Request) {
 	body, err := io.ReadAll(request.Body)
 	if err != nil {
@@ -102,6 +116,15 @@ func (h *Handlers) sendToQueue(order *models.Order) (bool, error) {
 }
 
 // GetOrdersHandler обрабатывает запросы на получение списка заказов для аутентифицированного пользователя.
+// @Summary Получить список заказов
+// @Description Возвращает список заказов для аутентифицированного пользователя.
+// @Tags Заказы
+// @Produce  json
+// @Success 200 {array} models.OrderWithAccrual "Список заказов"
+// @Failure 204 {string} payloads.ErrorResponseBody
+// @Failure 401 {string} payloads.ErrorResponseBody
+// @Failure 500 {string} payloads.ErrorResponseBody
+// @Router /api/user/orders [get]
 func (h *Handlers) GetOrdersHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)
@@ -133,6 +156,15 @@ func (h *Handlers) GetOrdersHandler(response http.ResponseWriter, request *http.
 }
 
 // GetOrdersWwithdrawalsHandler обрабатывает запросы на получение списка заказов со снятием средств для аутентифицированного пользователя.
+// @Summary Получить заказы со снятием средств
+// @Description Возвращает список заказов со снятием средств для аутентифицированного пользователя.
+// @Tags Заказы
+// @Produce  json
+// @Success 200 {array} models.OrderWithdraw "Список заказов"
+// @Failure 204 {string} payloads.ErrorResponseBody
+// @Failure 401 {string} payloads.ErrorResponseBody
+// @Failure 500 {string} payloads.ErrorResponseBody
+// @Router /api/user/withdrawals [get]
 func (h *Handlers) GetOrdersWwithdrawalsHandler(response http.ResponseWriter, request *http.Request) {
 	// Берём авторизованного пользователя
 	user, ok := request.Context().Value(token.UserKey).(*models.User)

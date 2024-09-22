@@ -18,6 +18,12 @@ import (
 	"syscall"
 )
 
+// @title GoFemart API
+// @version 1.0
+// @description Система баланса поощрений
+
+// @host localhost:8080
+// @BasePath /
 func main() {
 	log.Println("Start program")
 	// Устанавливаем настройки

@@ -3,9 +3,11 @@ package router
 import (
 	"github.com/go-chi/chi/v5"
 	cMiddleware "github.com/go-chi/chi/v5/middleware"
+	//httpSwagger "github.com/swaggo/http-swagger"
 	"gofemart/cmd/gophermart/handlers/balance"
 	"gofemart/cmd/gophermart/handlers/login"
 	"gofemart/cmd/gophermart/handlers/orders"
+	//_ "gofemart/docs"
 	config "gofemart/internal/configuration"
 	database "gofemart/internal/databse"
 	"gofemart/internal/logger"
@@ -26,6 +28,10 @@ func NewRouter(dbPool *database.DBPool, cnf *config.CliConfig) chi.Router {
 		cMiddleware.StripSlashes, // Убираем лишние слеши
 		logger.LogRequests,       // Логируем данные запроса
 	)
+	// Адрес свагера
+	/*router.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"), //The url pointing to API definition
+	))*/
 	router.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", lHandlers.RegistrationHandler)
 		r.Post("/login", lHandlers.LoginHandler)
