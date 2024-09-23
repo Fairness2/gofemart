@@ -1,0 +1,30 @@
+name: Migrate
+
+#on:
+#  pull_request:
+#  push:
+#    branches:
+#      - master
+#      - main
+
+
+jobs:
+  migrate:
+    name: Migrate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set GOOSE_DRIVER environment variable
+        run: echo "GOOSE_DRIVER=postgres" >> $GITHUB_ENV
+      - name: Set GOOSE_DBSTRING environment variable
+        run: echo "GOOSE_DBSTRING=postgresql://postgres:postgres@postgres/praktikum?sslmode=disable" >> $GITHUB_ENV
+      - name: Set GOOSE_MIGRATION_DIR environment variable
+        run: echo "GOOSE_MIGRATION_DIR=internal/databse/migrations/sql" >> $GITHUB_ENV
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.4'
+
+      - uses: actions/checkout@v3
+
+      - uses: mscno/setup-goose@v1
+
+      - run: goose up
