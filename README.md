@@ -1,5 +1,5 @@
 # go-musthave-diploma-tpl
-![Coverage](https://img.shields.io/badge/Coverage-18.7%25-red)
+![Coverage](https://img.shields.io/badge/Coverage-19.8%25-red)
 
 Шаблон репозитория для индивидуального дипломного проекта курса «Go-разработчик»
 
