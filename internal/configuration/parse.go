@@ -86,6 +86,12 @@ func parseFromEnv(params *CliConfig) error {
 	if cnf.DBCheckDuration > 0 {
 		params.DBCheckDuration = cnf.DBCheckDuration
 	}
+	if cnf.DBMaxConnections > 0 {
+		params.DBMaxConnections = cnf.DBMaxConnections
+	}
+	if cnf.DBMaxIdleConnections > 0 {
+		params.DBMaxIdleConnections = cnf.DBMaxIdleConnections
+	}
 	return nil
 }
 
@@ -106,6 +112,8 @@ func parseFromCli(cnf *CliConfig) error {
 	flag.DurationVar(&cnf.TokenExpiration, "te", DefaultTokenExpiration, "token expiration time")
 	flag.DurationVar(&cnf.AccrualSenderPause, "aps", DefaultAccrualSenderPause, "pause between sending accruals")
 	flag.DurationVar(&cnf.DBCheckDuration, "dbs", DefaultDBCheckDuration, "duration between BD checks")
+	flag.IntVar(&cnf.DBMaxConnections, "dbmc", DefaultDBMaxConnections, "max count of connections to BD")
+	flag.IntVar(&cnf.DBMaxIdleConnections, "dbmic", DefaultDBMaxIdleConnections, "max count of idle connections to BD")
 
 	// Парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse() // Сейчас будет выход из приложения, поэтому код ниже не будет исполнен, но может пригодиться в будущем, если поменять флаг выхода или будет несколько сетов
@@ -227,6 +235,12 @@ func bindEnv() error { // TODO подумать о том, чтобы сдела
 	if err := viper.BindEnv("DBCheckDuration", "DB_CHECK_DURATION"); err != nil {
 		return err
 	}
+	if err := viper.BindEnv("DBMaxConnections", "DB_MAX_CONNECTIONS"); err != nil {
+		return err
+	}
+	if err := viper.BindEnv("DBMaxIdleConnections", "DB_MAX_IDLE_CONNECTIONS"); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -246,6 +260,8 @@ func bindArg() error {
 	pflag.DurationP("TokenExpiration", "t", DefaultTokenExpiration, "token expiration time")
 	pflag.DurationP("AccrualSenderPause", "s", DefaultAccrualSenderPause, "pause between sending accruals")
 	pflag.DurationP("DBCheckDuration", "c", DefaultDBCheckDuration, "duration between BD checks")
+	pflag.IntP("DBMaxConnections", "n", DefaultDBMaxConnections, "max count of connections to BD")
+	pflag.IntP("DBMaxIdleConnections", "i", DefaultDBMaxIdleConnections, "max count of idle connections to BD")
 	pflag.Parse()
 	return viper.BindPFlags(pflag.CommandLine)
 }

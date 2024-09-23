@@ -15,11 +15,13 @@ type DBPool struct {
 	DBx *sqlx.DB
 }
 
-func newPgDBx(dsn string) (*sqlx.DB, error) {
+func newPgDBx(dsn string, maxConnections int, maxIdleConnections int) (*sqlx.DB, error) {
 	db, err := sqlx.Open("pgx", dsn)
 	if err != nil {
 		return nil, err
 	}
+	db.SetMaxOpenConns(maxConnections)
+	db.SetMaxIdleConns(maxIdleConnections)
 	// Если дсн не передан, то просто возвращаем созданный пул, он не работоспособен
 	if dsn == "" {
 		return db, nil
@@ -32,12 +34,12 @@ func newPgDBx(dsn string) (*sqlx.DB, error) {
 }
 
 // NewDB инициализация подключения к бд
-func NewDB(dsn string) (*DBPool, error) {
+func NewDB(dsn string, maxConnections int, maxIdleConnections int) (*DBPool, error) {
 	if dsn == "" {
 		return nil, ErrorEmptyDSN
 	}
 	// Создание пула подключений к базе данных для приложения
-	db, err := newPgDBx(dsn)
+	db, err := newPgDBx(dsn, maxConnections, maxIdleConnections)
 	if err != nil {
 		return nil, err
 	}
@@ -51,11 +53,7 @@ func NewDB(dsn string) (*DBPool, error) {
 func (p *DBPool) Migrate() error {
 	logger.Log.Info("Migrate migrations")
 	// Применим миграции
-	migrator, err := migrations.New()
-	if err != nil {
-		return err
-	}
-	return migrator.Migrate(p.DBx.DB)
+	return migrations.Migrate(p.DBx.DB)
 }
 
 // Close закрытие базы данных

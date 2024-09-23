@@ -26,7 +26,7 @@ func NewUserRepository(ctx context.Context, db SQLExecutor) *UserRepository { //
 // UserExists проверяем наличие пользователя
 func (r *UserRepository) UserExists(login string) (bool, error) {
 	var exists bool
-	err := r.db.QueryRowContext(r.ctx, "SELECT true FROM t_user WHERE login = $1", login).Scan(&exists)
+	err := r.db.QueryRowContext(r.ctx, userExistsSQL, login).Scan(&exists)
 	// Если у нас нет записей, то возвращаем false
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		return false, nil
@@ -39,7 +39,7 @@ func (r *UserRepository) UserExists(login string) (bool, error) {
 
 // CreateUser вставляем нового пользователя и присваиваем ему id
 func (r *UserRepository) CreateUser(user *models.User) error {
-	smth, err := r.db.PrepareNamed("INSERT INTO t_user (login, password_hash) VALUES (:login, :password_hash) RETURNING id")
+	smth, err := r.db.PrepareNamed(createUserSQL)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (r *UserRepository) CreateUser(user *models.User) error {
 // Возвращает пользователя, логическое значение, если найдено, и ошибку.
 func (r *UserRepository) GetUserByLogin(login string) (*models.User, bool, error) {
 	var user models.User
-	err := r.db.QueryRowxContext(r.ctx, "SELECT id, login, password_hash FROM t_user WHERE login = $1", login).StructScan(&user)
+	err := r.db.QueryRowxContext(r.ctx, getUserByLoginSQL, login).StructScan(&user)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, false, nil
 	}
@@ -65,7 +65,7 @@ func (r *UserRepository) GetUserByLogin(login string) (*models.User, bool, error
 // Возвращает пользователя, логическое значение, указывающее на существование, и ошибку.
 func (r *UserRepository) GetUserByID(id int64) (*models.User, bool, error) {
 	var user models.User
-	err := r.db.QueryRowxContext(r.ctx, "SELECT id, login, password_hash FROM t_user WHERE id = $1", id).StructScan(&user)
+	err := r.db.QueryRowxContext(r.ctx, getUserByIDSQL, id).StructScan(&user)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, false, nil
 	}

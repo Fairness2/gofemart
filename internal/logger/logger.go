@@ -33,3 +33,14 @@ func New(level string) (*zap.SugaredLogger, error) {
 	// Создаём обогащённый логер и возвращаем
 	return logger.Sugar(), nil
 }
+
+// NewGlobal инициализируем глобальный логер
+func NewGlobal(logLevel string) (*zap.SugaredLogger, error) {
+	lgr, err := New(logLevel)
+	if err != nil {
+		return nil, err
+	}
+	Log = lgr
+
+	return lgr, nil
+}

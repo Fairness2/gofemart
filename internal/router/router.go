@@ -3,10 +3,10 @@ package router
 import (
 	"github.com/go-chi/chi/v5"
 	cMiddleware "github.com/go-chi/chi/v5/middleware"
-	//httpSwagger "github.com/swaggo/http-swagger"
-	"gofemart/cmd/gophermart/handlers/balance"
-	"gofemart/cmd/gophermart/handlers/login"
-	"gofemart/cmd/gophermart/handlers/orders"
+	"gofemart/internal/handlers/balance"
+	"gofemart/internal/handlers/login"
+	"gofemart/internal/handlers/orders"
+
 	//_ "gofemart/docs"
 	config "gofemart/internal/configuration"
 	database "gofemart/internal/databse"

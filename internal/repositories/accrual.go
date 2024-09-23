@@ -26,7 +26,7 @@ func NewAccountRepository(ctx context.Context, db SQLExecutor) *AccountRepositor
 
 // CreateAccount вставляем новую транзакцию на счёт
 func (r *AccountRepository) CreateAccount(account *models.Account) error {
-	smth, err := r.db.PrepareNamed("INSERT INTO t_account (user_id, difference, order_number, created_at, updated_at) VALUES (:user_id, :difference, :order_number, :created_at, :updated_at) RETURNING id")
+	smth, err := r.db.PrepareNamed(createAccountSQL)
 	if err != nil {
 		return err
 	}
@@ -37,7 +37,7 @@ func (r *AccountRepository) CreateAccount(account *models.Account) error {
 // GetSum Получаем текущий баланс пользователя
 func (r *AccountRepository) GetSum(userID int64) (float64, error) {
 	var sum float64
-	row := r.db.QueryRowContext(r.ctx, "SELECT COALESCE(SUM(difference), 0) FROM t_account WHERE user_id = $1", userID)
+	row := r.db.QueryRowContext(r.ctx, getSumSQL, userID)
 	if row.Err() != nil {
 		return 0, row.Err()
 	}
@@ -51,7 +51,7 @@ func (r *AccountRepository) GetSum(userID int64) (float64, error) {
 // GetBalance рассчитывает и возвращает текущий и снятый баланс для данного пользователя.
 func (r *AccountRepository) GetBalance(userID int64) (*models.Balance, error) { // TODO транзакция для того, чтобы зафиксировать состояние таблицы
 	balance := &models.Balance{}
-	row := r.db.QueryRowxContext(r.ctx, "SELECT COALESCE(sum(difference), 0) current, COALESCE(sum(CASE WHEN difference < 0 THEN abs(difference) ELSE 0 END), 0) withdrawn FROM t_account WHERE user_id = $1", userID)
+	row := r.db.QueryRowxContext(r.ctx, getBalanceSQL, userID)
 	if row.Err() != nil {
 		return nil, row.Err()
 	}
@@ -64,7 +64,7 @@ func (r *AccountRepository) GetBalance(userID int64) (*models.Balance, error) { 
 // GetWithdrawByOrder извлекает запись о снятии средств по номеру заказа.
 func (r *AccountRepository) GetWithdrawByOrder(orderNumber string) (*models.Account, bool, error) {
 	account := &models.Account{}
-	err := r.db.QueryRowxContext(r.ctx, "SELECT * FROM t_account WHERE order_number = $1 AND difference < 0", orderNumber).
+	err := r.db.QueryRowxContext(r.ctx, getWithdrawByOrderSQL, orderNumber).
 		StructScan(account)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, false, nil

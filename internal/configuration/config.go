@@ -31,6 +31,10 @@ const (
 	DefaultWorkerCount = 10
 	// DefaultDBCheckDuration период в который проверяется база данных на необработанные заказы
 	DefaultDBCheckDuration = 5 * time.Second
+	// DefaultDBMaxConnections максимальное количество подключений к базе данных в пуле соединений
+	DefaultDBMaxConnections = 2
+	// DefaultDBMaxIdleConnections максимальное количество бездействующих подключений к базе данных в пуле соединений
+	DefaultDBMaxIdleConnections = 2
 )
 
 // DefaultPrivateKey Текстовое представление приватного ключа для JWT по умолчанию
@@ -50,21 +54,23 @@ type JWTKeys struct {
 
 // CliConfig конфигурация сервера из командной строки
 type CliConfig struct {
-	Address              string        `env:"RUN_ADDRESS"`            // адрес сервера
-	LogLevel             string        `env:"LOG_LEVEL"`              // Уровень логирования
-	DatabaseDSN          string        `env:"DATABASE_URI"`           // подключение к базе данных
-	AccrualSystemAddress string        `env:"ACCRUAL_SYSTEM_ADDRESS"` // адрес системы расчёта начислений
-	HashKey              string        `env:"KEY"`                    // Ключ для шифрования
-	PrivateKeyPath       string        `env:"PKEYP"`                  // Путь к приватному ключу для JWT
-	PublicKeyPath        string        `env:"PUKEYP"`                 // Путь к публичному ключу для JWT
-	PrivateKey           string        `env:"PKEY"`                   // Приватный ключ для JWT
-	PublicKey            string        `env:"PUKEY"`                  // Публичный ключ для JWT
-	JWTKeys              *JWTKeys      `env:"-"`                      // Ключи для JWT
-	TokenExpiration      time.Duration `env:"TOKEN_EXPIRATION"`       // Время жизни токена авторизации
-	AccrualSenderPause   time.Duration `env:"ACCRUAL_SENDER_PAUSE"`   // пауза в запросах к сервису начислений, если он ответил ответом, что слишком много запросов
-	QueueSize            int           `env:"QUEUE_SIZE"`             // количество заказов, которые одновременно могут находиться в очереди на проверке, если очередь заполнена, то они будут отложены
-	WorkerCount          int           `env:"WORKER_COUNT"`           // количество обработчиков заказов
-	DBCheckDuration      time.Duration `env:"DB_CHECK_DURATION"`      // период в который проверяется база данных на необработанные заказы
+	Address              string        `env:"RUN_ADDRESS"`             // адрес сервера
+	LogLevel             string        `env:"LOG_LEVEL"`               // Уровень логирования
+	DatabaseDSN          string        `env:"DATABASE_URI"`            // подключение к базе данных
+	AccrualSystemAddress string        `env:"ACCRUAL_SYSTEM_ADDRESS"`  // адрес системы расчёта начислений
+	HashKey              string        `env:"KEY"`                     // Ключ для шифрования
+	PrivateKeyPath       string        `env:"PKEYP"`                   // Путь к приватному ключу для JWT
+	PublicKeyPath        string        `env:"PUKEYP"`                  // Путь к публичному ключу для JWT
+	PrivateKey           string        `env:"PKEY"`                    // Приватный ключ для JWT
+	PublicKey            string        `env:"PUKEY"`                   // Публичный ключ для JWT
+	JWTKeys              *JWTKeys      `env:"-"`                       // Ключи для JWT
+	TokenExpiration      time.Duration `env:"TOKEN_EXPIRATION"`        // Время жизни токена авторизации
+	AccrualSenderPause   time.Duration `env:"ACCRUAL_SENDER_PAUSE"`    // пауза в запросах к сервису начислений, если он ответил ответом, что слишком много запросов
+	QueueSize            int           `env:"QUEUE_SIZE"`              // количество заказов, которые одновременно могут находиться в очереди на проверке, если очередь заполнена, то они будут отложены
+	WorkerCount          int           `env:"WORKER_COUNT"`            // количество обработчиков заказов
+	DBCheckDuration      time.Duration `env:"DB_CHECK_DURATION"`       // период в который проверяется база данных на необработанные заказы
+	DBMaxConnections     int           `env:"DB_MAX_CONNECTIONS"`      // максимальное количество подключений к базе данных в пуле соединений
+	DBMaxIdleConnections int           `env:"DB_MAX_IDLE_CONNECTIONS"` // максимальное количество бездействующих подключений к базе данных в пуле соединений
 }
 
 // NewDefaultConfig инициализация конфигурации приложения
@@ -84,5 +90,7 @@ func NewDefaultConfig() *CliConfig {
 		QueueSize:            DefaultQueueSize,
 		WorkerCount:          DefaultWorkerCount,
 		DBCheckDuration:      DefaultDBCheckDuration,
+		DBMaxConnections:     DefaultDBMaxConnections,
+		DBMaxIdleConnections: DefaultDBMaxIdleConnections,
 	}
 }
