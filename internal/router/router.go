@@ -7,7 +7,7 @@ import (
 	"gofemart/internal/handlers/login"
 	"gofemart/internal/handlers/orders"
 
-	//_ "gofemart/docs"
+	//_ "gofemart/api"
 	config "gofemart/internal/configuration"
 	database "gofemart/internal/databse"
 	"gofemart/internal/logger"
